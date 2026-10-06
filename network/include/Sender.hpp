@@ -1,6 +1,8 @@
 #ifndef SENDER_HPP
     #define SENDER_HPP
 
+    #include <asio.hpp>
+
 namespace Net {
     class Sender {
         private:
