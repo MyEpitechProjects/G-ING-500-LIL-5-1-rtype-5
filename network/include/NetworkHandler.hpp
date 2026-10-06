@@ -5,6 +5,7 @@
     #include <asio.hpp>
     #include <iostream>
     #include <array>
+    #include <thread>
 
     using asio::ip::udp;
 
@@ -16,6 +17,8 @@ namespace Net {
 
             std::array<std::uint8_t, 65536> _receivedQueue;
             udp::endpoint _sender;
+
+            std::thread _networkThread;
         public:
             NetworkHandler(int port);
             ~NetworkHandler();
@@ -23,6 +26,10 @@ namespace Net {
             void receive();
 
             void run();
+
+            void stop();
+
+            bool queueIsEmpty();
     };
 }
 
