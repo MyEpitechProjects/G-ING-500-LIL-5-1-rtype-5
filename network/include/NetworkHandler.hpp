@@ -1,32 +1,29 @@
 #ifndef NETWORK_HANDLER_HPP
     #define NETWORK_HANDLER_HPP
 
-    #include "Receiver.hpp"
-    #include "Sender.hpp"
+
+    #include <asio.hpp>
+    #include <iostream>
+    #include <array>
 
     using asio::ip::udp;
 
 namespace Net {
     class NetworkHandler {
         private:
-            Net::Receiver _receiver;
-            Net::Sender _sender;
-
             asio::io_context _io;
             udp::socket _socket;
+
+            std::array<std::uint8_t, 65536> _receivedQueue;
+            udp::endpoint _sender;
         public:
             NetworkHandler(int port);
             ~NetworkHandler();
+
+            void receive();
+
+            void run();
     };
-
-    NetworkHandler::NetworkHandler(int port) : _socket(_io,udp::endpoint(udp::v4(), port)) {
-
-    }
-
-    NetworkHandler::~NetworkHandler() {
-    
-    }
-    
 }
 
 #endif

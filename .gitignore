@@ -1,2 +1,4 @@
 *.o
 rtype_server
+a.out
+client_test.cpp
