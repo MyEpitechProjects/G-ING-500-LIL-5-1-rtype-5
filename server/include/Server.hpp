@@ -1,18 +1,19 @@
 #ifndef SERVER_HPP
     #define SERVER_HPP
 
-    #include "Receiver.hpp"
+    #include "NetworkHandler.hpp"
 
 namespace rtype {
     class Server {
         private:
-            Net::Receiver _receiver;
+            Net::NetworkHandler _netHandler;
+            
         public:
             Server(int port);
             ~Server();
     };
 
-    Server::Server(int port) {
+    Server::Server(int port) : _netHandler(port) {
     
     }
 
