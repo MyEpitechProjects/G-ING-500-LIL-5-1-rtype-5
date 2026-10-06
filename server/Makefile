@@ -12,7 +12,9 @@ CXXFLAGS =  -std=c++20 -Wall -Wextra -Werror -fexceptions
 CPPFLAGS =  -Iinclude \
 			-I../network/include
 
-SRC = src/main.cpp
+SRC = 	src/main.cpp \
+		src/Server.cpp \
+		../network/src/NetworkHandler.cpp
 
 OBJ = $(SRC:%.cpp=%.o)
 

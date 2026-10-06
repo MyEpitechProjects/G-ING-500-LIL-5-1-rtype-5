@@ -11,16 +11,9 @@ namespace rtype {
         public:
             Server(int port);
             ~Server();
+
+            void run();
     };
-
-    Server::Server(int port) : _netHandler(port) {
-    
-    }
-
-    Server::~Server() {
-    
-    }
-    
 }
 
 #endif
