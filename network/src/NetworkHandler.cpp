@@ -28,8 +28,6 @@ void Net::NetworkHandler::receive() {
                     << _sender.address().to_string()
                     << ':' << _sender.port()
                     << '\n';
-                // Ici : valider et décoder le paquet.
-                // Ne lire que receiveBuffer_[0..received).
             }
             receive();
         }
@@ -55,8 +53,4 @@ void Net::NetworkHandler::stop() {
 
     if (_networkThread.joinable())
         _networkThread.join();
-}
-
-bool Net::NetworkHandler::queueIsEmpty() {
-    return _receivedQueue.empty();
 }

@@ -9,5 +9,5 @@ rtype::Server::~Server() {
 }
 
 void rtype::Server::run() {
-    _netHandler.run();
+    _netHandler.run();    
 }

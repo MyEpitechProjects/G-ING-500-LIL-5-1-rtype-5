@@ -28,8 +28,6 @@ namespace Net {
             void run();
 
             void stop();
-
-            bool queueIsEmpty();
     };
 }
 
