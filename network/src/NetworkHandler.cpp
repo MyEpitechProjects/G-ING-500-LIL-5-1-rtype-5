@@ -1,4 +1,6 @@
 #include "NetworkHandler.hpp"
+#include "PacketCodec.hpp"
+#include <utility>
 
 Net::NetworkHandler::NetworkHandler(int port, std::shared_ptr<WakeSignal> wake): _socket(_io,udp::endpoint(udp::v4(), port)), _wakeSignal(std::move(wake)) {
 
@@ -20,15 +22,16 @@ void Net::NetworkHandler::receive() {
                 std::cerr << "Erreur de reception : " << error.message() << '\n';
                 return;
             }
-            if (received > 1200) {
-                std::cerr << "Datagramme hors limite\n";
+            auto packet = PacketCodec::deserialize(_receivedQueue.data(), received);
+            if (packet.has_value()) {
+                {
+                    std::lock_guard<std::mutex> lock(_incomingMutex);
+                    _incomingQueue.push({_sender, std::move(packet.value())});
+                }
+                if (_wakeSignal)
+                    _wakeSignal->notify();
             } else {
-                std::cout
-                    << received << " octets recus de "
-                    << _sender.address().to_string()
-                    << ':' << _sender.port()
-                    << '\n';
-                _wakeSignal->notify();
+                std::cout << "invalid packet" << std::endl;
             }
             receive();
         }
@@ -44,10 +47,10 @@ void Net::NetworkHandler::stop() {
     _io.stop();
 }
 
-void Net::NetworkHandler::send(ToClientPacket packet, udp::endpoint destination) {
+void Net::NetworkHandler::send(Net::PacketCodec::Packet packet, udp::endpoint destination) {
     {
         std::lock_guard<std::mutex> lock(_outgoingMutex);
-        _clientQueue.push({std::move(destination), std::move(packet)});
+        _outgoingQueue.push({std::move(destination), std::move(packet)});
     }
 
     asio::post(_io, [this] {
@@ -55,17 +58,13 @@ void Net::NetworkHandler::send(ToClientPacket packet, udp::endpoint destination)
     });
 }
 
-void Net::NetworkHandler::send(
-    ToServerPacket packet, udp::endpoint destination)
-{
-    {
-        std::lock_guard<std::mutex> lock(_outgoingMutex);
-        _serverQueue.push({std::move(destination), std::move(packet)});
-    }
-
-    asio::post(_io, [this] {
-        flushOutgoing();
-    });
+std::optional<Net::IncomingPacket<Net::PacketCodec::Packet>> Net::NetworkHandler::popPacket() {
+    std::lock_guard<std::mutex> lock(_incomingMutex);
+    if (_incomingQueue.empty())
+        return std::nullopt;
+    auto packet = std::move(_incomingQueue.front());
+    _incomingQueue.pop();
+    return packet;
 }
 
 void Net::NetworkHandler::flushOutgoing() {

@@ -24,5 +24,19 @@ void rtype::Server::run() {
 
     while (_running) {
         _wakeSignal->wait();
+        std::cout << "packet received" << std::endl;
+        auto packet = _netHandler.popPacket();
+        if (packet.has_value()) {
+            handlePacket(packet.value());
+        }
     }
+}
+
+void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &incomingPacket) {
+    std::visit([](auto&& arg){
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Net::HelloPacket>)
+            std::cout << "Send welcome packet" << std::endl;
+
+    }, incomingPacket.packet);
 }

@@ -21,6 +21,8 @@ namespace rtype {
 
             std::unordered_map<asio::ip::udp::endpoint, Session> _sessions;
             std::size_t _idCounter;
+
+            void handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet>& incomingPacket);
             
         public:
             Server(int port);
