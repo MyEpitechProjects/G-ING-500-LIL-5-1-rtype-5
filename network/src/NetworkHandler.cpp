@@ -1,6 +1,6 @@
 #include "NetworkHandler.hpp"
 
-Net::NetworkHandler::NetworkHandler(int port) : _socket(_io,udp::endpoint(udp::v4(), port)) {
+Net::NetworkHandler::NetworkHandler(int port, std::shared_ptr<WakeSignal> wake): _socket(_io,udp::endpoint(udp::v4(), port)), _wakeSignal(std::move(wake)) {
 
 }
 
@@ -28,6 +28,7 @@ void Net::NetworkHandler::receive() {
                     << _sender.address().to_string()
                     << ':' << _sender.port()
                     << '\n';
+                _wakeSignal->notify();
             }
             receive();
         }
@@ -36,21 +37,37 @@ void Net::NetworkHandler::receive() {
 
 void Net::NetworkHandler::run() {
     receive();
-    _networkThread = std::thread([this]{
-        try {
-            _io.run();
-        } catch (const std::exception& error) {
-            std::cerr
-                << "Erreur du thread reseau : "
-                << error.what() << '\n';
-            _io.stop();
-        }
-    });
+    _io.run();
 }
 
 void Net::NetworkHandler::stop() {
     _io.stop();
+}
 
-    if (_networkThread.joinable())
-        _networkThread.join();
+void Net::NetworkHandler::send(ToClientPacket packet, udp::endpoint destination) {
+    {
+        std::lock_guard<std::mutex> lock(_outgoingMutex);
+        _clientQueue.push({std::move(destination), std::move(packet)});
+    }
+
+    asio::post(_io, [this] {
+        flushOutgoing();
+    });
+}
+
+void Net::NetworkHandler::send(
+    ToServerPacket packet, udp::endpoint destination)
+{
+    {
+        std::lock_guard<std::mutex> lock(_outgoingMutex);
+        _serverQueue.push({std::move(destination), std::move(packet)});
+    }
+
+    asio::post(_io, [this] {
+        flushOutgoing();
+    });
+}
+
+void Net::NetworkHandler::flushOutgoing() {
+    
 }

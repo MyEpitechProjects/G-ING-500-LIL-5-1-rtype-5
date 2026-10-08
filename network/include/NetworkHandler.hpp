@@ -5,11 +5,26 @@
     #include <asio.hpp>
     #include <iostream>
     #include <array>
-    #include <thread>
+    #include <queue>
+    #include <memory>
+    #include <variant>
+
+    #include "WakeSignal.hpp"
+    #include "Paquet.hpp"
 
     using asio::ip::udp;
 
 namespace Net {
+
+    template<typename Packet>
+    struct OutgoingPacket {
+        udp::endpoint destination;
+        Packet packet;
+    };
+
+    using ToClientPacket = std::variant<SnapshotPacket, WelcomePacket>;
+    using ToServerPacket = std::variant<InputPacket, HelloPacket>;
+
     class NetworkHandler {
         private:
             asio::io_context _io;
@@ -18,9 +33,16 @@ namespace Net {
             std::array<std::uint8_t, 65536> _receivedQueue;
             udp::endpoint _sender;
 
-            std::thread _networkThread;
+            std::shared_ptr<WakeSignal> _wakeSignal;
+            std::queue<OutgoingPacket<ToClientPacket>> _clientQueue;
+            std::queue<OutgoingPacket<ToServerPacket>> _serverQueue;
+
+            std::mutex _outgoingMutex;
+
+            void flushOutgoing();
+
         public:
-            NetworkHandler(int port);
+            NetworkHandler(int port, std::shared_ptr<WakeSignal> wake);
             ~NetworkHandler();
 
             void receive();
@@ -28,6 +50,9 @@ namespace Net {
             void run();
 
             void stop();
+
+            void send(ToClientPacket packet, udp::endpoint destination);
+            void send(ToServerPacket packet, udp::endpoint destination);
     };
 }
 
