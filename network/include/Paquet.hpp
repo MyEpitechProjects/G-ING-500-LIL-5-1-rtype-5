@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "IPacket.hpp"
+
 namespace Net {
 
     constexpr std::uint8_t PROTOCOL_VERSION = 1;
@@ -12,10 +14,9 @@ namespace Net {
     constexpr std::size_t HEADER_WIRE_SIZE = 8;
     constexpr std::size_t ENTITY_WIRE_SIZE = 16;
     constexpr std::size_t SNAPSHOT_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 6;
-    constexpr std::size_t MAX_SNAPSHOT_ENTITIES =
-        (MAX_DATAGRAM_SIZE - SNAPSHOT_BASE_WIRE_SIZE) / ENTITY_WIRE_SIZE;
+    constexpr std::size_t MAX_SNAPSHOT_ENTITIES = (MAX_DATAGRAM_SIZE - SNAPSHOT_BASE_WIRE_SIZE) / ENTITY_WIRE_SIZE;
 
-    enum class PacketType : std::uint8_t {
+    enum PacketType : std::uint8_t {
         INPUT = 1,
         SNAPSHOT = 2,
         HELLO = 3,
@@ -29,7 +30,7 @@ namespace Net {
         RIGHT = 1 << 3,
     };
 
-    enum class EntityKind : std::uint8_t {
+    enum EntityKind : std::uint8_t {
         PLAYER = 1,
         ENEMY = 2,
         PROJECTILE = 3,
@@ -40,6 +41,10 @@ namespace Net {
         INVULNERABLE = 1 << 1,
     };
 
+    /*
+    ** PACKET HEADER
+    */
+
     struct PacketHeader {
         PacketType type;
         std::uint8_t version = PROTOCOL_VERSION;
@@ -47,10 +52,20 @@ namespace Net {
         std::uint32_t sessionId = 0;
     };
 
-    struct InputPacket {
+    struct InputPacket : IPacket {
+        InputPacket() = default;
+        InputPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~InputPacket() override = default;
+
         PacketHeader header{PacketType::INPUT};
         std::uint16_t buttons = 0;
+
+        std::vector<std::uint8_t> serialize() const override;
     };
+
+    /*
+    ** SNAPSHOT PACKET
+    */
 
     struct EntityState {
         std::uint32_t id = 0;
@@ -61,21 +76,46 @@ namespace Net {
         std::uint8_t flags = 0;
     };
 
-    struct SnapshotPacket {
+    struct SnapshotPacket : IPacket {
+        SnapshotPacket() = default;
+        SnapshotPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~SnapshotPacket() override = default;
+
         PacketHeader header{PacketType::SNAPSHOT};
         std::uint32_t serverTick = 0;
         std::vector<EntityState> entities;
+
+        std::vector<std::uint8_t> serialize() const override;
     };
 
-    struct HelloPacket {
+    /*
+    ** HELLO PACKET
+    */
+
+    struct HelloPacket : IPacket {
+        HelloPacket() = default;
+        HelloPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~HelloPacket() override = default;
+
         PacketHeader header{PacketType::HELLO};
+
+        std::vector<std::uint8_t> serialize() const override;
     };
 
-    struct WelcomePacket {
+    /*
+    ** WELCOME PACKET
+    */
+
+    struct WelcomePacket : IPacket {
+        WelcomePacket() = default;
+        WelcomePacket(PacketHeader header_packet) : header(header_packet) {}
+        ~WelcomePacket() override = default;
+
         PacketHeader header{PacketType::WELCOME};
         std::uint32_t playerEntityId = 0;
-    };
 
+        std::vector<std::uint8_t> serialize() const override;
+    };
 }
 
 #endif

@@ -3,12 +3,26 @@
 
     #include "NetworkHandler.hpp"
     #include "Session.hpp"
+    #include "WakeSignal.hpp"
+
+    #include <thread>
+    #include <queue>
+    #include <memory>
 
 namespace rtype {
     class Server {
         private:
+            bool _running = true;
+            std::shared_ptr<WakeSignal> _wakeSignal;
+
             Net::NetworkHandler _netHandler;
+            std::thread _netThread;
+            std::thread _gameThread;
+
             std::unordered_map<asio::ip::udp::endpoint, Session> _sessions;
+            std::size_t _idCounter;
+
+            void handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet>& incomingPacket);
             
         public:
             Server(int port);

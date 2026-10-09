@@ -1,6 +1,8 @@
 #include "NetworkHandler.hpp"
+#include "PacketCodec.hpp"
+#include <utility>
 
-Net::NetworkHandler::NetworkHandler(int port) : _socket(_io,udp::endpoint(udp::v4(), port)) {
+Net::NetworkHandler::NetworkHandler(int port, std::shared_ptr<WakeSignal> wake): _socket(_io,udp::endpoint(udp::v4(), port)), _wakeSignal(std::move(wake)) {
 
 }
 
@@ -20,14 +22,16 @@ void Net::NetworkHandler::receive() {
                 std::cerr << "Erreur de reception : " << error.message() << '\n';
                 return;
             }
-            if (received > 1200) {
-                std::cerr << "Datagramme hors limite\n";
+            auto packet = PacketCodec::deserialize(_receivedQueue.data(), received);
+            if (packet) {
+                {
+                    std::lock_guard<std::mutex> lock(_incomingMutex);
+                    _incomingQueue.push({_sender, std::move(packet)});
+                }
+                if (_wakeSignal)
+                    _wakeSignal->notify();
             } else {
-                std::cout
-                    << received << " octets recus de "
-                    << _sender.address().to_string()
-                    << ':' << _sender.port()
-                    << '\n';
+                std::cout << "invalid packet" << std::endl;
             }
             receive();
         }
@@ -36,21 +40,33 @@ void Net::NetworkHandler::receive() {
 
 void Net::NetworkHandler::run() {
     receive();
-    _networkThread = std::thread([this]{
-        try {
-            _io.run();
-        } catch (const std::exception& error) {
-            std::cerr
-                << "Erreur du thread reseau : "
-                << error.what() << '\n';
-            _io.stop();
-        }
-    });
+    _io.run();
 }
 
 void Net::NetworkHandler::stop() {
     _io.stop();
+}
 
-    if (_networkThread.joinable())
-        _networkThread.join();
+void Net::NetworkHandler::send(Net::PacketCodec::Packet packet, udp::endpoint destination) {
+    {
+        std::lock_guard<std::mutex> lock(_outgoingMutex);
+        _outgoingQueue.push({std::move(destination), std::move(packet)});
+    }
+
+    asio::post(_io, [this] {
+        flushOutgoing();
+    });
+}
+
+std::optional<Net::IncomingPacket<Net::PacketCodec::Packet>> Net::NetworkHandler::popPacket() {
+    std::lock_guard<std::mutex> lock(_incomingMutex);
+    if (_incomingQueue.empty())
+        return std::nullopt;
+    auto packet = std::move(_incomingQueue.front());
+    _incomingQueue.pop();
+    return packet;
+}
+
+void Net::NetworkHandler::flushOutgoing() {
+    
 }
