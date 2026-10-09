@@ -23,10 +23,10 @@ void Net::NetworkHandler::receive() {
                 return;
             }
             auto packet = PacketCodec::deserialize(_receivedQueue.data(), received);
-            if (packet.has_value()) {
+            if (packet) {
                 {
                     std::lock_guard<std::mutex> lock(_incomingMutex);
-                    _incomingQueue.push({_sender, std::move(packet.value())});
+                    _incomingQueue.push({_sender, std::move(packet)});
                 }
                 if (_wakeSignal)
                     _wakeSignal->notify();

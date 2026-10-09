@@ -16,7 +16,8 @@ SRC = 	src/main.cpp \
 		src/Server.cpp \
 		../network/src/WakeSignal.cpp \
 		../network/src/PacketCodec.cpp \
-		../network/src/NetworkHandler.cpp
+		../network/src/NetworkHandler.cpp \
+		../network/src/Paquet.cpp
 
 OBJ = $(SRC:%.cpp=%.o)
 

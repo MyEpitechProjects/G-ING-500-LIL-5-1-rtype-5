@@ -25,18 +25,15 @@ void rtype::Server::run() {
     while (_running) {
         _wakeSignal->wait();
         std::cout << "packet received" << std::endl;
-        auto packet = _netHandler.popPacket();
-        if (packet.has_value()) {
+        while (auto packet = _netHandler.popPacket()) {
             handlePacket(packet.value());
         }
     }
 }
 
 void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &incomingPacket) {
-    std::visit([](auto&& arg){
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, Net::HelloPacket>)
-            std::cout << "Send welcome packet" << std::endl;
-
-    }, incomingPacket.packet);
+    if (dynamic_cast<Net::HelloPacket*>(incomingPacket.packet.get()))
+        std::cout << "send welcome packet" << std::endl;
+    if (dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get()))
+        std::cout << "send this packet to game logic" << std::endl;
 }
