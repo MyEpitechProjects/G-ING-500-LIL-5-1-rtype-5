@@ -68,5 +68,15 @@ std::optional<Net::IncomingPacket<Net::PacketCodec::Packet>> Net::NetworkHandler
 }
 
 void Net::NetworkHandler::flushOutgoing() {
-    
+    std::lock_guard<std::mutex> lock(_outgoingMutex);
+    while (!_outgoingQueue.empty()) {
+        OutgoingPacket<Net::PacketCodec::Packet> packet = std::move(_outgoingQueue.front());
+        _outgoingQueue.pop();
+        auto bytes = packet.packet->serialize();
+        _socket.async_send_to(asio::buffer(bytes), packet.destination, [bytes](const asio::error_code& error, [[maybe_unused]]std::size_t sent) {
+            if (error) {
+                std::cerr << "Erreur d'envoi : " << error.message() << '\n';
+            }
+        });
+    }
 }
