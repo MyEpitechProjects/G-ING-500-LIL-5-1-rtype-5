@@ -25,15 +25,28 @@ class Registry {
         ~Registry() = default;
 
         template <class Component>
-        SparseArray<Component>& register_component();
+        SparseArray<Component>& register_component() {
+            _components_array.insert(std::make_pair<std::type_index, SparseArray<Component>>(typeid(Component), SparseArray<Component>{}));
+            _erasers.push_back([](Registry &registre, Entity const &entity){
+                registre.get_components<Component>().erase(entity.id());
+            });
+            return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
+        }
 
         template <class Component>
-        SparseArray<Component>& get_components();
+        SparseArray<Component>& get_components() {
+            return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
+        }
 
         template <class Component>
-        SparseArray<Component> const & get_components() const;
+        SparseArray<Component> const & get_components() const {
+            return std::any_cast<SparseArray<Component> const &>(_components_array.at(std::type_index(typeid(Component))));
+        }
 
-        void erase_entity(Entity const &entity);
+        void erase_entity(Entity const &entity) {
+            for (const std::function<void(Registry &, Entity const &)> &eraser : _erasers)
+                eraser(*this, entity);
+        }
 
     protected:
     private:
@@ -41,25 +54,5 @@ class Registry {
 
         std::vector<std::function<void(Registry &, Entity const &)>> _erasers;
 };
-
-template <class Component>
-SparseArray<Component> &Registry::register_component() {
-    _components_array.insert(std::make_pair<std::type_index, SparseArray<Component>>(typeid(Component), SparseArray<Component>{}));
-
-    _erasers.push_back([](Registry &registre, Entity const &entity){
-        registre.get_components<Component>().erase(entity.id());
-    });
-    return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
-}
-
-template <class Component>
-SparseArray<Component> &Registry::get_components() {
-    return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
-}
-
-template <class Component>
-SparseArray<Component> const &Registry::get_components() const {
-    return std::any_cast<SparseArray<Component> const &>(_components_array.at(std::type_index(typeid(Component))));
-}
 
 #endif /* !REGISTRY_HPP */
