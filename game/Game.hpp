@@ -4,9 +4,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "Components.hpp"
@@ -14,6 +16,7 @@
 #include "Registry.hpp"
 #include "GameMessage.hpp"
 #include "GameSystems.hpp"
+#include "WakeSignal.hpp"
 
 namespace rtype {
     class Game {
@@ -36,6 +39,7 @@ namespace rtype {
             std::vector<rtype::GameOutput> _out;
             std::mutex _inMutex;
             std::mutex _outMutex;
+            std::shared_ptr<WakeSignal> _wakeSignal;
 
             Entity createEntity() {
                 Entity entity(_nextId++);
@@ -117,7 +121,7 @@ namespace rtype {
             }
 
         public:
-            Game() { init(); };
+            Game(std::shared_ptr<WakeSignal> &wakeSignal) : _wakeSignal(wakeSignal) { init(); }
             ~Game() = default;
 
             Registry &getRegistry() { return _registry; }
@@ -182,6 +186,7 @@ namespace rtype {
                     [this](Entity entity) { destroyEntity(entity); }
                 );
                 SnapshotSystem{}(_registry, _entities, _tick, _score, _out, _outMutex);
+                _wakeSignal->notify();
             }
 
             void run() {
