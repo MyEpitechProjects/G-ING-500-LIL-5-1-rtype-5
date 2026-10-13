@@ -4,6 +4,7 @@
     #include "NetworkHandler.hpp"
     #include "Session.hpp"
     #include "WakeSignal.hpp"
+    #include "Game.hpp"
 
     #include <thread>
     #include <queue>
@@ -16,6 +17,7 @@ namespace rtype {
             std::shared_ptr<WakeSignal> _wakeSignal;
 
             Net::NetworkHandler _netHandler;
+            Game _game;
             std::thread _netThread;
             std::thread _gameThread;
 
