@@ -37,9 +37,29 @@ class Registry {
 
     protected:
     private:
-        std::unordered_map<std::type_index, SparseArray<std::any>> _components_array;
+        std::unordered_map<std::type_index, std::any> _components_array;
 
         std::vector<std::function<void(Registry &, Entity const &)>> _erasers;
 };
+
+template <class Component>
+SparseArray<Component> &Registry::register_component() {
+    _components_array.insert(std::make_pair<std::type_index, SparseArray<Component>>(typeid(Component), SparseArray<Component>{}));
+
+    _erasers.push_back([](Registry &registre, Entity const &entity){
+        registre.get_components<Component>().erase(entity.id());
+    });
+    return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
+}
+
+template <class Component>
+SparseArray<Component> &Registry::get_components() {
+    return std::any_cast<SparseArray<Component> &>(_components_array.at(std::type_index(typeid(Component))));
+}
+
+template <class Component>
+SparseArray<Component> const &Registry::get_components() const {
+    return std::any_cast<SparseArray<Component> const &>(_components_array.at(std::type_index(typeid(Component))));
+}
 
 #endif /* !REGISTRY_HPP */
