@@ -32,8 +32,22 @@ void rtype::Server::run() {
 }
 
 void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &incomingPacket) {
-    if (dynamic_cast<Net::HelloPacket*>(incomingPacket.packet.get()))
-        std::cout << "send welcome packet" << std::endl;
+    if (dynamic_cast<Net::HelloPacket*>(incomingPacket.packet.get())) {
+        Session playerSession = createSession(incomingPacket.sender);
+        Net::WelcomePacket weclome;
+        weclome.playerEntityId = playerSession.client_id;
+        std::unique_ptr<Net::WelcomePacket> packet = std::make_unique<Net::WelcomePacket>(weclome);
+        _netHandler.send(std::move(packet), incomingPacket.sender);
+    }
     if (dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get()))
         std::cout << "send this packet to game logic" << std::endl;
+}
+
+Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
+    if (!_sessions.contains(endpoint)) {
+        _sessions.insert({endpoint, Session{_idCounter}});
+        _idCounter++;
+    }
+
+    return _sessions.at(endpoint);
 }

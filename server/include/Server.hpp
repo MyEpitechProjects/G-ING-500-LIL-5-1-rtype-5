@@ -23,6 +23,8 @@ namespace rtype {
             std::size_t _idCounter;
 
             void handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet>& incomingPacket);
+
+            Session createSession(asio::ip::udp::endpoint endpoint);
             
         public:
             Server(int port);
