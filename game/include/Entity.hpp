@@ -10,9 +10,7 @@ class Entity {
         explicit Entity(std::size_t id) : _id(id) {}
         ~Entity() = default;
 
-        std::size_t id() const {
-            return _id;
-        }
+        std::size_t id() const { return _id; }
 };
 
 #endif

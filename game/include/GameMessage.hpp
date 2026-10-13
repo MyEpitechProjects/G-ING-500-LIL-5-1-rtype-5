@@ -31,6 +31,7 @@ namespace rtype {
         GameEntityKind kind;
         Position position;
         int health = 0;
+        bool fromPlayer = false;
     };
 
     enum class GameOutputType {
