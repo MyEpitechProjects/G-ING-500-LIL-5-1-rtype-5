@@ -15,11 +15,16 @@ CPPFLAGS =  -Iinclude \
 
 LDFLAGS =   -lsfml-graphics \
 			-lsfml-window \
-			-lsfml-system
+			-lsfml-system \
+			-lcrypto
 
 SRC =       src/main.cpp \
 			src/Graphic.cpp \
-			src/AssetsPak.cpp
+			src/AssetsPak.cpp	\
+			src/objects/Object.cpp	\
+			src/Animation.cpp	\
+			src/objects/PlayerObject.cpp	\
+			src/ObjectManager.cpp
 
 OBJ = $(SRC:%.cpp=%.o)
 

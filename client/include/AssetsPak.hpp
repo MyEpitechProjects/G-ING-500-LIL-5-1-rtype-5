@@ -33,7 +33,7 @@ namespace rtype {
             
         public:
             AssetsPak(const fs::path& chemin);
-            ~AssetsPak();
+            ~AssetsPak() = default;
 
             bool is_valid() const;
             std::optional<std::vector<uint8_t>> get_asset(const std::string& path);
