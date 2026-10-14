@@ -10,11 +10,18 @@ NAME =      rtype_server
 CXX =       g++
 CXXFLAGS =  -std=c++20 -Wall -Wextra -Werror -fexceptions
 CPPFLAGS =  -Iinclude \
-			-I../network/include
+			-I../network/include \
+			-I../game/include
 
 SRC = 	src/main.cpp \
 		src/Server.cpp \
-		../network/src/NetworkHandler.cpp
+		../network/src/WakeSignal.cpp \
+		../network/src/PacketCodec.cpp \
+		../network/src/NetworkHandler.cpp \
+		../network/src/Paquet.cpp \
+		../game/src/Game.cpp \
+		../game/src/GameSystems.cpp \
+		../game/src/Registry.cpp \
 
 OBJ = $(SRC:%.cpp=%.o)
 

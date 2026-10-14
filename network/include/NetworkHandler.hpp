@@ -5,11 +5,32 @@
     #include <asio.hpp>
     #include <iostream>
     #include <array>
-    #include <thread>
+    #include <queue>
+    #include <memory>
+    #include <variant>
+    #include <mutex>
+    #include <optional>
+
+    #include "WakeSignal.hpp"
+    #include "Paquet.hpp"
+    #include "PacketCodec.hpp"
 
     using asio::ip::udp;
 
 namespace Net {
+
+    template<typename Packet>
+    struct OutgoingPacket {
+        udp::endpoint destination;
+        Packet packet;
+    };
+
+    template<typename Packet>
+    struct IncomingPacket {
+        udp::endpoint sender;
+        Packet packet;
+    };
+
     class NetworkHandler {
         private:
             asio::io_context _io;
@@ -18,9 +39,18 @@ namespace Net {
             std::array<std::uint8_t, 65536> _receivedQueue;
             udp::endpoint _sender;
 
-            std::thread _networkThread;
+            std::shared_ptr<WakeSignal> _wakeSignal;
+
+            std::mutex _outgoingMutex;
+            std::mutex _incomingMutex;
+
+            std::queue<OutgoingPacket<Net::PacketCodec::Packet>> _outgoingQueue;
+            std::queue<IncomingPacket<Net::PacketCodec::Packet>> _incomingQueue;
+
+            void flushOutgoing();
+
         public:
-            NetworkHandler(int port);
+            NetworkHandler(int port, std::shared_ptr<WakeSignal> wake);
             ~NetworkHandler();
 
             void receive();
@@ -28,6 +58,10 @@ namespace Net {
             void run();
 
             void stop();
+
+            void send(Net::PacketCodec::Packet packet, udp::endpoint destination);
+
+            std::optional<IncomingPacket<Net::PacketCodec::Packet>> popPacket();
     };
 }
 
