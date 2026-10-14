@@ -7,15 +7,12 @@
 #include "Object.hpp"
 
 namespace rtype {
-    class PlayerObject : public Object {
+    class ShootLoadingObject : public Object {
         private:
-            uint16_t hp = 0;
-            bool is_moving_up = false;
-            bool is_moving_down = false;
-            
+            bool is_pressed = false;
         public:
-            explicit PlayerObject(uint16_t x, uint16_t y, uint16_t dir);
-            ~PlayerObject() = default;
+            explicit ShootLoadingObject(uint16_t x, uint16_t y, uint16_t dir, rtype::ObjectManager& manager_obj);
+            ~ShootLoadingObject() = default;
             void update(rtype::InputKeys& keys) override;
 
     };

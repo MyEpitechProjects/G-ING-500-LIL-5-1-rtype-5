@@ -4,8 +4,11 @@
 #include <vector>
 #include "AssetsPak.hpp"
 #include "Animation.hpp"
+#include "ObjectManager.hpp"
 
 namespace rtype {
+    class ObjectManager;
+
     struct InputKeys {
         uint8_t left : 1;
         uint8_t up : 1;
@@ -30,9 +33,10 @@ namespace rtype {
             sf::Sprite sprite;
             std::string animation_id = "";
             bool hided = false;
+            rtype::ObjectManager& manager;
             
         public:
-            Object(float x, float y, uint16_t dir);
+            Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj);
             ~Object();
             const sf::Sprite& get_sprite() const;
             rtype::Animation* get_animation(std::string id);
@@ -50,5 +54,7 @@ namespace rtype {
             bool is_hided();
             void hide();
             void show();
+            float get_x();
+            float get_y();
     };
 }

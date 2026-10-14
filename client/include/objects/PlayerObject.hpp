@@ -14,7 +14,7 @@ namespace rtype {
             bool is_moving_down = false;
             
         public:
-            explicit PlayerObject(uint16_t x, uint16_t y, uint16_t dir);
+            explicit PlayerObject(uint16_t x, uint16_t y, uint16_t dir, rtype::ObjectManager& manager_obj);
             ~PlayerObject() = default;
             void update(rtype::InputKeys& keys) override;
 

@@ -1,6 +1,6 @@
 #include "objects/PlayerObject.hpp"
 
-rtype::PlayerObject::PlayerObject(uint16_t x, uint16_t y, uint16_t dir) : Object(x, y, dir)
+rtype::PlayerObject::PlayerObject(uint16_t x, uint16_t y, uint16_t dir, rtype::ObjectManager& manager_obj) : Object(x, y, dir, manager_obj)
 {
 }
 

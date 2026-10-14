@@ -24,7 +24,8 @@ SRC =       src/main.cpp \
 			src/objects/Object.cpp	\
 			src/Animation.cpp	\
 			src/objects/PlayerObject.cpp	\
-			src/ObjectManager.cpp
+			src/ObjectManager.cpp	\
+			src/objects/ShootLoadingObject.cpp
 
 OBJ = $(SRC:%.cpp=%.o)
 

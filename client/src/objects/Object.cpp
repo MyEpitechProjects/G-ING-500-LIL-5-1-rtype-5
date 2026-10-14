@@ -1,6 +1,6 @@
 #include "objects/Object.hpp"
 
-rtype::Object::Object(float x, float y, uint16_t dir) : sprite(blank_texture)
+rtype::Object::Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj) : sprite(blank_texture), manager(manager_obj)
 {
     (void)dir;
     sprite.setPosition(sf::Vector2f(
@@ -48,6 +48,14 @@ void rtype::Object::set_animation(std::string id)
     }
     animation_id = id;
     sprite.setTexture(animation->get_texture(), true);
+}
+
+float rtype::Object::get_x() { 
+    return x;
+}
+
+float rtype::Object::get_y() { 
+    return y;
 }
 
 void rtype::Object::move_x(float value) { 

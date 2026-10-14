@@ -29,6 +29,7 @@ namespace rtype {
             void reset_animation();
             const rtype::Frame& get_frame(uint32_t frame_index) const;
             void set_reverse(bool status);
+            void set_loop(bool status);
 
     };
 }

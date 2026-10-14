@@ -5,6 +5,8 @@
 #include "AssetsPak.hpp"
 #include "objects/Object.hpp"
 namespace rtype {
+    class Object;
+    
     class ObjectManager {
         protected:
             std::map<std::string,std::unique_ptr<rtype::Object>> objects;

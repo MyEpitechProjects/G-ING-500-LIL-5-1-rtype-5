@@ -109,5 +109,9 @@ void rtype::Animation::set_reverse(bool status) {
     reversed = status;
 }
 
+void rtype::Animation::set_loop(bool status) {
+    loop = status;
+}
+
 rtype::Animation::~Animation() {
 }

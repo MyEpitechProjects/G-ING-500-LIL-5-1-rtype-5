@@ -1,19 +1,33 @@
 #include "Graphic.hpp"
 #include "objects/PlayerObject.hpp"
+#include "objects/ShootLoadingObject.hpp"
+
 #include <algorithm>
 
 rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std::string assets_file) : assets(assets_file), object_manager(assets) {
     window.create(sf::VideoMode({width, height}), title);
     
 
-    std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::PlayerObject>(0, 0, 0);
+    std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, object_manager);
 
     rtype::Object *ptr = obj.get();
     ptr->add_animation("blue-stand", assets, "images/animations/ship/blue/stand.anim");
     ptr->add_animation("blue-down", assets, "images/animations/ship/blue/down.anim");
     ptr->add_animation("blue-up", assets, "images/animations/ship/blue/up.anim");
     ptr->set_animation("blue-stand");
+
     object_manager.add_object("player", obj);
+
+
+
+    obj = std::make_unique<rtype::ShootLoadingObject>(0, 0, 0, object_manager);
+
+    ptr = obj.get();
+    ptr->add_animation("anim", assets, "images/animations/shoot_load.anim");
+    ptr->set_animation("anim");
+    rtype::Animation *anim = ptr->get_animation("anim");
+    anim->set_loop(true);
+    object_manager.add_object("gun", obj);
 }
 
 rtype::Graphic::~Graphic() {
