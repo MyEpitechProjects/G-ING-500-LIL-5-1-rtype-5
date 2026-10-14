@@ -9,6 +9,7 @@
     #include <thread>
     #include <queue>
     #include <memory>
+    #include <ranges>
 
 namespace rtype {
     class Server {
@@ -27,6 +28,10 @@ namespace rtype {
             void handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet>& incomingPacket);
 
             Session createSession(asio::ip::udp::endpoint endpoint);
+
+            Net::SnapshotPacket convertGameOutput(GameOutput snapshot) const;
+
+            void broadcast(Net::SnapshotPacket &packet);
             
         public:
             Server(int port);

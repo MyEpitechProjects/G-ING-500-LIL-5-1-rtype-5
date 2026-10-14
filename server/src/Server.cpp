@@ -8,6 +8,10 @@ rtype::Server::~Server() {
     _netHandler.stop();
     if (_netThread.joinable())
         _netThread.join();
+
+    _game.stop();
+    if (_gameThread.joinable())
+        _gameThread.join();
 }
 
 void rtype::Server::run() {
@@ -35,6 +39,11 @@ void rtype::Server::run() {
             std::cout << "network packet received" << std::endl;
             handlePacket(packet.value());
         }
+        std::vector<GameOutput> snapshots = _game.takeOutputQueue();
+        for (GameOutput snapshot : snapshots) {
+            Net::SnapshotPacket snapPacket = convertGameOutput(snapshot);
+            broadcast(snapPacket);
+        }
     }
 }
 
@@ -46,8 +55,11 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
         std::unique_ptr<Net::WelcomePacket> packet = std::make_unique<Net::WelcomePacket>(weclome);
         _netHandler.send(std::move(packet), incomingPacket.sender);
     }
-    if (dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get()))
-        std::cout << "send this packet to game logic" << std::endl;
+    if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
+        Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, false};
+        GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
+        _game.addInputQueue(std::vector<GameInput>{eventPacket});
+    }
 }
 
 Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
@@ -57,4 +69,42 @@ Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
     }
 
     return _sessions.at(endpoint);
+}
+
+Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const {
+    Net::PacketHeader header;
+    header.type = Net::PacketType::SNAPSHOT;
+
+    Net::SnapshotPacket packet(header);
+    std::vector<Net::EntityState> entities;
+
+    for (GameEntityState state : snapshot.entities) {
+        Net::EntityState statePacket;
+        statePacket.x = state.position.x;
+        statePacket.y = state.position.y;
+        switch (state.kind) {
+            case GameEntityKind::Player: {
+                statePacket.kind = Net::EntityKind::PLAYER;
+                break;
+            } case GameEntityKind::Projectile: {
+                statePacket.kind = Net::EntityKind::PROJECTILE;
+                break;
+            } case GameEntityKind::Enemy: {
+                statePacket.kind = Net::EntityKind::ENEMY;
+                break;
+            } default:
+                break;
+        }
+        statePacket.health = state.health;
+        statePacket.id = state.id;
+    }
+    packet.entities = entities;
+    return packet;
+}
+
+void rtype::Server::broadcast(Net::SnapshotPacket &packet) {
+    std::cout << "send to all clients" << std::endl;
+    for (const auto &[endpoint, session] : _sessions) {
+        _netHandler.send(std::make_unique<Net::SnapshotPacket>(packet), endpoint);
+    }
 }
