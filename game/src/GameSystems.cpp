@@ -133,7 +133,8 @@ namespace rtype {
         const SparseArray<Player> &players = registry.get_components<Player>();
         const SparseArray<Controllable> &controls = registry.get_components<Controllable>();
         SparseArray<CoolDown> &cooldowns = registry.get_components<CoolDown>();
-        for (const Entity &player : entities) {
+        const std::vector<Entity> activeEntities = entities;
+        for (const Entity &player : activeEntities) {
             const std::size_t id = player.id();
             if (id >= players.size() || !players[id] || id >= controls.size() || !controls[id]
                 || id >= positions.size() || !positions[id] || id >= cooldowns.size() || !cooldowns[id])
@@ -146,7 +147,6 @@ namespace rtype {
     }
 
     void EnemySystem::operator()(Registry &registry, const std::vector<Entity> &entities, unsigned int &tick, int enemyInterval, int height, const std::function<void(int)> &spawnEnemy, const std::function<void(int, int, bool)> &spawnProjectile) const {
-        ++tick;
         if (tick % enemyInterval == 0) {
             const int y = 30 + std::rand() % (height - 60);
             spawnEnemy(y);
@@ -155,7 +155,8 @@ namespace rtype {
             return;
         const SparseArray<Position> &positions = registry.get_components<Position>();
         const SparseArray<Enemy> &enemies = registry.get_components<Enemy>();
-        for (const Entity &enemy : entities) {
+        const std::vector<Entity> activeEntities = entities;
+        for (const Entity &enemy : activeEntities) {
             const std::size_t id = enemy.id();
             if (id < enemies.size() && enemies[id] && id < positions.size() && positions[id])
                 spawnProjectile(positions[id]->x - 20, positions[id]->y, false);
@@ -165,7 +166,8 @@ namespace rtype {
     void BoundsSystem::operator()(Registry &registry, const std::vector<Entity> &entities, int width, int height, const std::function<void(Entity)> &destroyEntity) const {
         SparseArray<Position> &positions = registry.get_components<Position>();
         const SparseArray<Player> &players = registry.get_components<Player>();
-        for (const Entity &entity : entities) {
+        const std::vector<Entity> activeEntities = entities;
+        for (const Entity &entity : activeEntities) {
             const std::size_t id = entity.id();
             if (id >= positions.size() || !positions[id])
                 continue;
@@ -189,13 +191,14 @@ namespace rtype {
         const SparseArray<Player> &players = registry.get_components<Player>();
         const SparseArray<Enemy> &enemies = registry.get_components<Enemy>();
         const SparseArray<Projectile> &projectiles = registry.get_components<Projectile>();
-        for (const Entity &shot : entities) {
+        const std::vector<Entity> activeEntities = entities;
+        for (const Entity &shot : activeEntities) {
             const std::size_t shotId = shot.id();
             if (shotId >= projectiles.size() || !projectiles[shotId]
                 || shotId >= positions.size() || !positions[shotId])
                 continue;
             const bool fromPlayer = projectiles[shotId]->fromPlayer;
-            for (const Entity &target : entities) {
+            for (const Entity &target : activeEntities) {
                 const std::size_t targetId = target.id();
                 if (shotId == targetId || targetId >= positions.size() || !positions[targetId]
                     || targetId >= health.size() || !health[targetId])
@@ -222,12 +225,13 @@ namespace rtype {
         SparseArray<Health> &health = registry.get_components<Health>();
         const SparseArray<Player> &players = registry.get_components<Player>();
         const SparseArray<Enemy> &enemies = registry.get_components<Enemy>();
-        for (const Entity &enemy : entities) {
+        const std::vector<Entity> activeEntities = entities;
+        for (const Entity &enemy : activeEntities) {
             const std::size_t enemyId = enemy.id();
             if (enemyId >= enemies.size() || !enemies[enemyId]
                 || enemyId >= positions.size() || !positions[enemyId])
                 continue;
-            for (const Entity &player : entities) {
+            for (const Entity &player : activeEntities) {
                 const std::size_t playerId = player.id();
                 if (playerId >= players.size() || !players[playerId]
                     || playerId >= positions.size() || !positions[playerId]

@@ -21,7 +21,6 @@ SRC = 	src/main.cpp \
 		../network/src/Paquet.cpp \
 		../game/src/Game.cpp \
 		../game/src/GameSystems.cpp \
-		../game/src/Registry.cpp \
 
 OBJ = $(SRC:%.cpp=%.o)
 

@@ -117,6 +117,7 @@ namespace rtype {
     void Game::stop() { _running = false; }
 
     void Game::update() {
+        _tick++;
         InputQueueSystem{}(_in, _inMutex, _registry,
             [this](int playerId) { return getEntityFromPlayerId(playerId); },
             [this](int playerId) { addPlayer(playerId); },
