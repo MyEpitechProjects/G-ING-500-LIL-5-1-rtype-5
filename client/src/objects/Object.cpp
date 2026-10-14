@@ -1,5 +1,9 @@
 #include "objects/Object.hpp"
 
+rtype::Object::Object(rtype::ObjectManager& manager_obj) : sprite(blank_texture), manager(manager_obj)
+{
+}
+
 rtype::Object::Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj) : sprite(blank_texture), manager(manager_obj)
 {
     (void)dir;

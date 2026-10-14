@@ -4,6 +4,19 @@ rtype::PlayerObject::PlayerObject(uint16_t x, uint16_t y, uint16_t dir, rtype::O
 {
 }
 
+            uint32_t get_entity_id();
+            void set_entity_id(uint32_t id);
+
+uint32_t rtype::PlayerObject::get_entity_id()
+{
+    return entity_id;
+}
+
+void rtype::PlayerObject::set_entity_id(uint32_t id)
+{
+    entity_id = id;
+}
+
 void rtype::PlayerObject::update(rtype::InputKeys& keys) {
     float deltaTime = objectClock.restart().asSeconds();
     if (keys.space){

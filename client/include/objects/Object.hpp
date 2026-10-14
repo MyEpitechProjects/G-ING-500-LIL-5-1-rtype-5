@@ -37,7 +37,8 @@ namespace rtype {
             
         public:
             Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj);
-            ~Object();
+            Object(rtype::ObjectManager& manager_obj);
+            virtual ~Object();
             const sf::Sprite& get_sprite() const;
             rtype::Animation* get_animation(std::string id);
             virtual void update(rtype::InputKeys& keys) = 0;
