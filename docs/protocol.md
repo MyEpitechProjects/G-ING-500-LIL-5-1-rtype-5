@@ -1,9 +1,9 @@
 # R-Type network protocol — version 1
 
 This document describes the binary format currently implemented in
-[Paquet.hpp](../network/include/Paquet.hpp),
-[Paquet.cpp](../network/src/Paquet.cpp) and
-[PacketCodec.cpp](../network/src/PacketCodec.cpp).
+[Paquet.hpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/include/Paquet.hpp),
+[Paquet.cpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/src/Paquet.cpp) and
+[PacketCodec.cpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/src/PacketCodec.cpp).
 
 ## Transport and encoding
 
