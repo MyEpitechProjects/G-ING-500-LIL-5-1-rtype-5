@@ -296,7 +296,7 @@ Decoding rejects incorrect sizes, unknown versions/types, unsupported buttons, u
 
 Serialization may throw `std::invalid_argument` for invalid data. It runs in the thread executing `run()`, not necessarily the one calling `send()`: wrap `run()` in a `try/catch` block.
 
-See also the [protocol documentation](protocol.md); the definitions used by the implementation are in [Paquet.hpp](../network/include/Paquet.hpp) and [PacketCodec.cpp](../network/src/PacketCodec.cpp).
+See also the [protocol documentation](protocol.md); the definitions used by the implementation are in [Paquet.hpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/include/Paquet.hpp) and [PacketCodec.cpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/src/PacketCodec.cpp).
 
 ## 7. Current state and integration considerations
 

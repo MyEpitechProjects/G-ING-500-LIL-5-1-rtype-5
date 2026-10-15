@@ -1,0 +1,18 @@
+site_name: R-Type Documentation
+site_description: Build instructions, networking guide and binary protocol reference for R-Type.
+repo_url: https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5
+repo_name: R-Type on GitHub
+
+theme:
+  name: mkdocs
+  locale: en
+
+nav:
+  - Home: index.md
+  - Build: build.md
+  - Networking guide: network.md
+  - Network protocol: protocol.md
+
+plugins:
+  - search:
+      lang: en

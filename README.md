@@ -61,3 +61,32 @@ The server currently listens on UDP port **4242**. For the debug build, use `./b
 
 - [Networking usage guide](docs/network.md)
 - [Network protocol](docs/protocol.md)
+
+### Documentation website
+
+The documentation is built with MkDocs. From the repository root, create a
+Python environment and install the documentation dependencies:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-docs.txt
+```
+
+Preview the documentation locally:
+
+```sh
+python -m mkdocs serve
+```
+
+Open <http://127.0.0.1:8000>. Changes to the Markdown files are reloaded automatically.
+
+Build the static website and check for documentation warnings:
+
+```sh
+python -m mkdocs build --strict
+```
+
+The generated website is written to `site/`. Edit the pages in `docs/` and the
+navigation in `mkdocs.yml`. Keep the build instructions in this README and
+`docs/build.md` in sync when the build process changes.
