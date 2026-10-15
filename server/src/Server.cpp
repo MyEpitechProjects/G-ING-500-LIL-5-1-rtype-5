@@ -34,7 +34,9 @@ void rtype::Server::run() {
     });
 
     while (_running) {
-        _wakeSignal->wait();
+        _wakeSignal->waitFor(std::chrono::milliseconds(500));
+
+        removeInactiveClients();
         while (auto packet = _netHandler.popPacket()) {
             std::cout << "network packet received" << std::endl;
             handlePacket(packet.value());
@@ -60,6 +62,7 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
         GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
         _game.addInputQueue(std::vector<GameInput>{eventPacket});
     }
+    _sessions.at(incomingPacket.sender).lastSeen = std::chrono::steady_clock::now();
 }
 
 Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
@@ -104,8 +107,25 @@ Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const 
 }
 
 void rtype::Server::broadcast(Net::SnapshotPacket &packet) {
-    std::cout << "send to all clients" << std::endl;
     for (const auto &[endpoint, session] : _sessions) {
         _netHandler.send(std::make_unique<Net::SnapshotPacket>(packet), endpoint);
     }
+}
+
+void rtype::Server::removeInactiveClients() {
+    const auto now = std::chrono::steady_clock::now();
+    const auto timeout = std::chrono::seconds(10);
+    std::vector<GameInput> removeList;
+
+    for (auto it = _sessions.begin(); it != _sessions.end();) {
+        if (now - it->second.lastSeen >= timeout) {
+            std::cout << "remove player : " << it->second.client_id << std::endl;
+            GameInput remover{GameInputType::RemovePlayer, it->second.client_id};
+            removeList.push_back(remover);
+            it = _sessions.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    _game.addInputQueue(std::vector<GameInput>(removeList));
 }
