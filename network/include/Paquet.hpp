@@ -28,6 +28,7 @@ namespace Net {
         DOWN = 1 << 1,
         LEFT = 1 << 2,
         RIGHT = 1 << 3,
+        FIRE = 1 << 4,
     };
 
     enum EntityKind : std::uint8_t {
