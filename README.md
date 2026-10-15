@@ -34,15 +34,6 @@ cmake --build build --target rtype_server -j
 
 After changing the code, simply run the build command again.
 
-### Debug build
-
-To generate an executable with debug symbols, use a separate directory:
-
-```sh
-cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-debug --parallel
-```
-
 ### Full rebuild
 
 ```sh
