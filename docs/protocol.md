@@ -1,153 +1,151 @@
-# Protocole réseau R-Type — version 1
+# R-Type network protocol — version 1
 
-Ce document décrit le format binaire actuellement implémenté dans
+This document describes the binary format currently implemented in
 [Paquet.hpp](../network/include/Paquet.hpp),
-[Paquet.cpp](../network/src/Paquet.cpp) et
+[Paquet.cpp](../network/src/Paquet.cpp) and
 [PacketCodec.cpp](../network/src/PacketCodec.cpp).
 
-## Transport et encodage
+## Transport and encoding
 
-- Transport : UDP, un paquet applicatif par datagramme.
-- Version : `1` (`PROTOCOL_VERSION`).
-- Taille maximale acceptée : **1 200 octets**, en-tête applicatif inclus, hors en-têtes UDP/IP.
-- Entiers non signés de 8, 16 ou 32 bits ; les entiers multioctets sont encodés en **big-endian** (octet de poids fort en premier).
-- Aucun padding : les champs sont écrits individuellement, sans copier les structures C++ en mémoire.
-- Les coordonnées sont encodées par copie des bits d'un `float` de 32 bits vers un `uint32_t`, puis écriture en big-endian.
-- Les offsets ci-dessous sont exprimés en octets, à partir de zéro.
+- Transport: UDP, one application packet per datagram.
+- Version: `1` (`PROTOCOL_VERSION`).
+- Maximum accepted size: **1,200 bytes**, including the application header but excluding UDP/IP headers.
+- Unsigned 8-, 16- or 32-bit integers; multibyte integers use **big-endian** encoding (most significant byte first).
+- No padding: fields are written individually, without copying the in-memory C++ structures.
+- Coordinates are encoded by copying the bits of a 32-bit `float` into a `uint32_t`, then writing it in big-endian order.
+- The offsets below are expressed in bytes, starting at zero.
 
-## En-tête commun — 8 octets
+## Common header — 8 bytes
 
-| Offset | Taille | Champ | Description |
+| Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 0 | 1 | `type` | Type de paquet, voir tableau suivant |
-| 1 | 1 | `version` | Version du protocole, obligatoirement `1` |
-| 2 | 2 | `sequence` | Numéro de séquence, valeur par défaut : `0` |
-| 4 | 4 | `sessionId` | Identifiant de session, valeur par défaut : `0` |
+| 0 | 1 | `type` | Packet type, see the next table |
+| 1 | 1 | `version` | Protocol version, must be `1` |
+| 2 | 2 | `sequence` | Sequence number, default: `0` |
+| 4 | 4 | `sessionId` | Session identifier, default: `0` |
 
-Le codec transporte `sequence` et `sessionId` sans vérifier leur progression,
-leur unicité ou leur validité métier. Il n'incrémente pas automatiquement la séquence.
+The codec carries `sequence` and `sessionId` without checking their progression,
+uniqueness or application-level validity. It does not increment the sequence automatically.
 
-## Types de paquets
+## Packet types
 
-| Valeur | Nom | Rôle prévu | Taille totale |
+| Value | Name | Intended purpose | Total size |
 | --- | --- | --- | --- |
-| `1` | `INPUT` | Commandes du joueur, client → serveur | 10 octets |
-| `2` | `SNAPSHOT` | État des entités, serveur → client | `14 + 16 × N` octets |
-| `3` | `HELLO` | Demande de connexion, client → serveur | 8 octets |
-| `4` | `WELCOME` | Attribution d'une entité joueur, serveur → client | 12 octets |
+| `1` | `INPUT` | Player input, client → server | 10 bytes |
+| `2` | `SNAPSHOT` | Entity states, server → client | `14 + 16 × N` bytes |
+| `3` | `HELLO` | Connection request, client → server | 8 bytes |
+| `4` | `WELCOME` | Player entity assignment, server → client | 12 bytes |
 
-Ces directions décrivent le rôle des messages ; le codec ne contrôle pas le sens
-de circulation et ne réalise pas lui-même la connexion ou la gestion des sessions.
+These directions describe the purpose of the messages; the codec does not enforce
+their direction or handle connections or sessions itself.
 
 ### HELLO — type 3
 
-Contient uniquement l'en-tête commun, sans charge utile.
+Contains only the common header, with no payload.
 
 ### WELCOME — type 4
 
-| Offset | Taille | Champ | Description |
+| Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 8 | 4 | `playerEntityId` | Identifiant de l'entité attribuée au joueur |
+| 8 | 4 | `playerEntityId` | Identifier of the entity assigned to the player |
 
 ### INPUT — type 1
 
-| Offset | Taille | Champ | Description |
+| Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 8 | 2 | `buttons` | Masque des directions pressées |
+| 8 | 2 | `buttons` | Bitmask of pressed directions |
 
-| Bit | Valeur | Bouton |
+| Bit | Value | Button |
 | --- | --- | --- |
 | 0 | `0x0001` | `UP` |
 | 1 | `0x0002` | `DOWN` |
 | 2 | `0x0004` | `LEFT` |
 | 3 | `0x0008` | `RIGHT` |
 
-Les boutons se combinent avec un OU binaire : `UP | RIGHT = 0x0009`.
-La valeur `0` signifie qu'aucune direction n'est pressée. Le codec accepte les directions opposées simultanément.
+Buttons are combined with bitwise OR: `UP | RIGHT = 0x0009`.
+The value `0` means no direction is pressed. The codec accepts opposite directions simultaneously.
 
 ### SNAPSHOT — type 2
 
-| Offset | Taille | Champ | Description |
+| Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 8 | 4 | `serverTick` | Tick serveur associé à cet état |
-| 12 | 2 | `count` | Nombre d'entités `N` |
-| 14 | `16 × N` | `entities` | Entités consécutives, dans l'ordre du vecteur |
+| 8 | 4 | `serverTick` | Server tick associated with this state |
+| 12 | 2 | `count` | Number of entities `N` |
+| 14 | `16 × N` | `entities` | Consecutive entities, in vector order |
 
-Un snapshot vide est valide et mesure 14 octets. Le nombre maximal d'entités est :
+An empty snapshot is valid and occupies 14 bytes. The maximum number of entities is:
 
 ```text
-MAX_SNAPSHOT_ENTITIES = (1200 - 14) / 16 = 74 (division entière)
-Taille d'un snapshot de 74 entités = 1198 octets
+MAX_SNAPSHOT_ENTITIES = (1200 - 14) / 16 = 74 (integer division)
+Size of a snapshot with 74 entities = 1198 bytes
 ```
 
-Chaque entité occupe exactement **16 octets**. Les offsets suivants sont relatifs
-au début de l'entité ; l'entité d'indice `i` commence à `14 + 16 × i`.
+Each entity occupies exactly **16 bytes**. The following offsets are relative
+to the start of the entity; the entity at index `i` starts at `14 + 16 × i`.
 
-| Offset relatif | Taille | Champ | Encodage |
+| Relative offset | Size | Field | Encoding |
 | --- | --- | --- | --- |
 | 0 | 4 | `id` | `uint32_t` |
-| 4 | 1 | `kind` | `uint8_t` : `PLAYER = 1`, `ENEMY = 2`, `PROJECTILE = 3` |
-| 5 | 4 | `x` | Bits du flottant 32 bits, en big-endian |
-| 9 | 4 | `y` | Bits du flottant 32 bits, en big-endian |
+| 4 | 1 | `kind` | `uint8_t`: `PLAYER = 1`, `ENEMY = 2`, `PROJECTILE = 3` |
+| 5 | 4 | `x` | 32-bit floating-point bits, in big-endian order |
+| 9 | 4 | `y` | 32-bit floating-point bits, in big-endian order |
 | 13 | 2 | `health` | `uint16_t` |
-| 15 | 1 | `flags` | Masque d'état |
+| 15 | 1 | `flags` | State bitmask |
 
-Les flags définis sont `ALIVE = 0x01` et `INVULNERABLE = 0x02`.
-Ils peuvent être combinés. Actuellement, les autres bits de `flags` ne sont pas
-rejetés par le codec. Les coordonnées doivent être finies : NaN et les infinis
-sont refusés. Aucune limite de position ni contrainte métier sur `health` ou `id`
-n'est appliquée par le codec.
+The defined flags are `ALIVE = 0x01` and `INVULNERABLE = 0x02`.
+They can be combined. Other bits in `flags` are currently not rejected by the codec.
+Coordinates must be finite: NaN and infinities are rejected.
+The codec applies no position limits or application-level constraints to `health` or `id`.
 
-## Validation et erreurs
+## Validation and errors
 
-`PacketCodec::deserialize()` retourne un `std::unique_ptr<IPacket>` contenant
-le type concret décodé, ou `nullptr` si le paquet est invalide.
+`PacketCodec::deserialize()` returns a `std::unique_ptr<IPacket>` holding
+the decoded concrete type, or `nullptr` if the packet is invalid.
 
-Un paquet est rejeté si :
+A packet is rejected if:
 
-- le pointeur fourni est nul, la taille est inférieure à 8 ou supérieure à 1 200 octets ;
-- la version est différente de `1` ou le type est inconnu ;
-- la taille ne correspond pas exactement à celle du type : les données tronquées et les octets supplémentaires sont refusés ;
-- un `INPUT` contient des bits de boutons non définis ;
-- un `SNAPSHOT` annonce plus de 74 entités ou une taille différente de `14 + 16 × count` ;
-- une entité contient un type inconnu ou une coordonnée non finie.
+- the supplied pointer is null, or the size is below 8 or above 1,200 bytes;
+- the version differs from `1` or the type is unknown;
+- the size does not exactly match the packet type: truncated data and extra bytes are rejected;
+- an `INPUT` contains undefined button bits;
+- a `SNAPSHOT` declares more than 74 entities or a size other than `14 + 16 × count`;
+- an entity contains an unknown type or a non-finite coordinate.
 
-Les méthodes `serialize() const` retournent les octets du paquet. Elles lèvent
-`std::invalid_argument` si la version ou le type de l'en-tête ne correspond pas
-au paquet, si les boutons sont invalides, ou si le snapshot contient trop
-d'entités ou une entité invalide. Une entité invalide n'est pas ignorée :
-la sérialisation du snapshot échoue.
+The `serialize() const` methods return the packet bytes. They throw
+`std::invalid_argument` if the header version or type does not match the packet,
+if the buttons are invalid, or if the snapshot contains too many entities or an
+invalid entity. An invalid entity is not skipped: snapshot serialization fails.
 
-## Exemples hexadécimaux
+## Hexadecimal examples
 
-HELLO, version 1, séquence 0 et session 0 :
+HELLO, version 1, sequence 0 and session 0:
 
 ```text
 03 01 00 00 00 00 00 00
 ```
 
-INPUT, version 1, séquence 1, session 42, boutons UP et RIGHT :
+INPUT, version 1, sequence 1, session 42, UP and RIGHT buttons:
 
 ```text
 01 01 00 01 00 00 00 2A 00 09
 ```
 
-WELCOME, version 1, séquence 0, session 42 et entité joueur 7 :
+WELCOME, version 1, sequence 0, session 42 and player entity 7:
 
 ```text
 04 01 00 00 00 00 00 2A 00 00 00 07
 ```
 
-SNAPSHOT vide, version 1, séquence 2, session 42 et tick serveur 100 :
+Empty SNAPSHOT, version 1, sequence 2, session 42 and server tick 100:
 
 ```text
 02 01 00 02 00 00 00 2A 00 00 00 64 00 00
 ```
 
-## Portée du protocole actuel
+## Scope of the current protocol
 
-Le format ne définit ni acquittement, ni retransmission, ni réassemblage de
-snapshots répartis sur plusieurs datagrammes. Le codec ne gère pas les pertes,
-les doublons ou le réordonnancement UDP. Il ne fournit ni authentification,
-ni chiffrement, ni validation de l'appartenance d'un émetteur à une session.
-Ces comportements relèvent des couches réseau et applicative à compléter.
+The format defines no acknowledgements, retransmissions or reassembly of snapshots
+split across multiple datagrams. The codec does not handle UDP packet loss,
+duplication or reordering. It provides no authentication, encryption or validation
+that a sender belongs to a session. These behaviors must be implemented in the
+networking and application layers.
