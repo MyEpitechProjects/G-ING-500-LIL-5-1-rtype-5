@@ -14,7 +14,7 @@
 
 namespace Net {
 
-    constexpr std::uint16_t BUTTON_MASK = Net::InputButton::UP | Net::InputButton::DOWN | Net::InputButton::LEFT | Net::InputButton::RIGHT;
+    constexpr std::uint16_t BUTTON_MASK = Net::InputButton::UP | Net::InputButton::DOWN | Net::InputButton::LEFT | Net::InputButton::RIGHT | Net::InputButton::FIRE;
 
     class PacketCodec{
         public:

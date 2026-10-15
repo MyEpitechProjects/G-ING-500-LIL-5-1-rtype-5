@@ -111,6 +111,7 @@ Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const 
         entities.push_back(statePacket);
     }
     packet.entities = entities;
+    packet.serverTick = snapshot.tick;
     return packet;
 }
 
