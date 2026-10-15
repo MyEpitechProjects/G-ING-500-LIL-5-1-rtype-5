@@ -28,7 +28,6 @@ target_link_libraries(rtype_network PUBLIC
 add_library(rtype_game STATIC
     game/src/Game.cpp
     game/src/GameSystems.cpp
-    game/src/Registry.cpp
 )
 
 target_include_directories(rtype_game PUBLIC
