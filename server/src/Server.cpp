@@ -97,6 +97,7 @@ Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const 
         }
         statePacket.health = state.health;
         statePacket.id = state.id;
+        entities.push_back(statePacket);
     }
     packet.entities = entities;
     return packet;
