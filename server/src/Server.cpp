@@ -43,8 +43,10 @@ void rtype::Server::run() {
         }
         std::vector<GameOutput> snapshots = _game.takeOutputQueue();
         for (GameOutput snapshot : snapshots) {
-            Net::SnapshotPacket snapPacket = convertGameOutput(snapshot);
-            broadcast(snapPacket);
+            if (snapshot.type == GameOutputType::Snapshot) {
+                Net::SnapshotPacket snapPacket = convertGameOutput(snapshot);
+                broadcast(snapPacket);
+            }
         }
     }
 }
@@ -53,16 +55,22 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
     if (dynamic_cast<Net::HelloPacket*>(incomingPacket.packet.get())) {
         Session playerSession = createSession(incomingPacket.sender);
         Net::WelcomePacket weclome;
+        weclome.header.sessionId = playerSession.client_id;
         weclome.playerEntityId = playerSession.client_id;
+        GameInput addPlayer{GameInputType::AddPlayer, playerSession.client_id};
+        _game.addInputQueue(std::vector<GameInput>{addPlayer});
         std::unique_ptr<Net::WelcomePacket> packet = std::make_unique<Net::WelcomePacket>(weclome);
         _netHandler.send(std::move(packet), incomingPacket.sender);
     }
     if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
-        Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, false};
-        GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
-        _game.addInputQueue(std::vector<GameInput>{eventPacket});
+        Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, (packet->buttons & Net::InputButton::FIRE) != 0};
+        if (_sessions.find(incomingPacket.sender) != _sessions.end() && _sessions.at(incomingPacket.sender).client_id == packet->header.sessionId) {
+            GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
+            _game.addInputQueue(std::vector<GameInput>{eventPacket});
+        }
     }
-    _sessions.at(incomingPacket.sender).lastSeen = std::chrono::steady_clock::now();
+    if (_sessions.find(incomingPacket.sender) != _sessions.end())
+        _sessions.at(incomingPacket.sender).lastSeen = std::chrono::steady_clock::now();
 }
 
 Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
