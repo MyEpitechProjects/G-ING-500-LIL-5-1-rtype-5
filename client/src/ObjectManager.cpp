@@ -18,3 +18,7 @@ rtype::Object* rtype::ObjectManager::get_object(std::string id) {
 const std::map<std::string,std::unique_ptr<rtype::Object>>& rtype::ObjectManager::get_object_map() const {
     return objects;
 }
+
+rtype::AssetsPak& rtype::ObjectManager::get_assets() {
+    return assets;
+}

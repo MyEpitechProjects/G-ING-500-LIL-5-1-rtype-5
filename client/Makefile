@@ -27,6 +27,7 @@ SRC =       src/main.cpp \
 			src/ObjectManager.cpp	\
 			src/objects/ShootLoadingObject.cpp	\
 			src/objects/NetworkObject.cpp	\
+			src/objects/EnemyObject.cpp	\
 			../network/src/WakeSignal.cpp \
 			../network/src/PacketCodec.cpp \
 			../network/src/NetworkHandler.cpp \

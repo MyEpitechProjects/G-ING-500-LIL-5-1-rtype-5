@@ -29,7 +29,6 @@ rtype::Animation::Animation(std::vector<uint8_t> data, rtype::AssetsPak& assets)
     offset += base_texture_l;
 
     auto texture_data = assets.get_asset(base_texture);
-    std::cout << base_texture << std::endl;
 
     if (!texture_data || texture_data->empty())
         throw std::runtime_error("Failed to load 3");

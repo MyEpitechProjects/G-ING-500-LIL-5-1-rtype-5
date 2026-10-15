@@ -10,10 +10,10 @@ rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std:
 
     std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::NetworkObject>(object_manager);
 
-    rtype::Object *ptr = obj.get();
+    //rtype::Object *ptr = obj.get();
     object_manager.add_object("network", obj);
 
-    obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, object_manager);
+    /*obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, object_manager);
 
     ptr = obj.get();
     ptr->add_animation("blue-stand", assets, "images/animations/ship/blue/stand.anim");
@@ -32,7 +32,7 @@ rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std:
     ptr->set_animation("anim");
     rtype::Animation *anim = ptr->get_animation("anim");
     anim->set_loop(true);
-    object_manager.add_object("gun", obj);
+    object_manager.add_object("gun", obj);*/
 
 
 
