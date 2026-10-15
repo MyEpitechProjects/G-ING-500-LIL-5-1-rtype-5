@@ -3,6 +3,7 @@
 
     #include <mutex>
     #include <condition_variable>
+    #include <chrono>
 
 class WakeSignal {
     public:
@@ -12,6 +13,8 @@ class WakeSignal {
         void notify();
 
         void wait();
+
+        bool waitFor(std::chrono::milliseconds timeout);
 
     private:
         std::mutex _mutex;

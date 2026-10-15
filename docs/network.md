@@ -1,14 +1,14 @@
-# Guide d’utilisation du réseau
+# Networking usage guide
 
-Ce guide décrit le module présent dans `network/`, partagé entre le client et le serveur. Il transporte des paquets en **UDP IPv4**. Il ne dépend ni du moteur de jeu ni de la bibliothèque graphique.
+This guide describes the module in `network/`, shared by the client and server. It transports packets over **UDP IPv4**. It does not depend on the game engine or graphics library.
 
-## 1. Récupérer et compiler le module
+## 1. Obtaining and building the module
 
-Dans ce dépôt, utilisez directement `network/include/` et `network/src/`. Pour intégrer le module dans un autre projet, copiez ces deux dossiers ensemble en conservant leur organisation.
+In this repository, use `network/include/` and `network/src/` directly. To integrate the module into another project, copy both directories together, preserving their layout.
 
-Prérequis : un compilateur C++20, les headers d’Asio standalone (`<asio.hpp>`, pas Boost.Asio) et le support des threads. Le module utilise notamment `std::bit_cast`, ce qui nécessite C++20.
+Prerequisites: a C++20 compiler, standalone Asio headers (`<asio.hpp>`, not Boost.Asio) and thread support. The module uses `std::bit_cast`, which requires C++20.
 
-Ajoutez le chemin des headers et ces **quatre sources** à votre cible :
+Add the include path and these **four source files** to your target:
 
 ```makefile
 CPPFLAGS += -I../network/include
@@ -21,11 +21,11 @@ SRC += ../network/src/NetworkHandler.cpp \
        ../network/src/WakeSignal.cpp
 ```
 
-Ces chemins correspondent à un Makefile placé dans `client/` ou `server/`. Les sources doivent être ajoutées avant le calcul de `OBJ`, et `$(LDFLAGS)` utilisé à la liaison. Conservez les autres sources et bibliothèques de votre application.
+These paths assume a Makefile located in `client/` or `server/`. Add the sources before computing `OBJ`, and use `$(LDFLAGS)` when linking. Keep your application's other sources and libraries.
 
-Le Makefile serveur référence déjà ces sources. Celui du client possède le chemin des headers, mais il faut encore lui ajouter les quatre sources pour utiliser le réseau.
+The server Makefile already references these sources. The client Makefile has the include path, but still needs the four source files to use the networking module.
 
-Depuis la racine, un programme autonome `example.cpp` utilisant le module se compile ainsi :
+From the repository root, a standalone `example.cpp` program using the module can be built as follows:
 
 ```sh
 g++ -std=c++20 -Wall -Wextra -Werror -pthread \
@@ -35,47 +35,47 @@ g++ -std=c++20 -Wall -Wextra -Werror -pthread \
     -o example
 ```
 
-## 2. Organisation et API
+## 2. Structure and API
 
-| Élément | Rôle |
+| Component | Purpose |
 | --- | --- |
-| `NetworkHandler.hpp` | Socket, boucle Asio, files d’envoi et de réception |
-| `Paquet.hpp` | Types concrets des paquets et constantes du protocole |
-| `IPacket.hpp` | Interface polymorphe avec `serialize()` |
-| `PacketCodec.hpp` | Encodage et décodage binaire |
-| `WakeSignal.hpp` | Réveil facultatif d’une boucle consommatrice |
+| `NetworkHandler.hpp` | Socket, Asio event loop, outgoing and incoming queues |
+| `Paquet.hpp` | Concrete packet types and protocol constants |
+| `IPacket.hpp` | Polymorphic interface with `serialize()` |
+| `PacketCodec.hpp` | Binary encoding and decoding |
+| `WakeSignal.hpp` | Optional wake-up mechanism for a consumer loop |
 
-Incluez `NetworkHandler.hpp` pour utiliser le module ; il inclut les types de paquets nécessaires.
+Include `NetworkHandler.hpp` to use the module; it includes the required packet types.
 
 ```cpp
 Net::NetworkHandler network(portLocal, wakeSignal);
 ```
 
-Le constructeur ouvre et attache immédiatement la socket sur toutes les interfaces IPv4. Le port est le **port local**, pas celui du serveur distant. Utilisez un port fixe côté serveur, et `0` côté client pour laisser le système choisir un port disponible. Une erreur d’ouverture ou un port déjà occupé peut faire lever une exception au constructeur.
+The constructor immediately opens and binds the socket on all IPv4 interfaces. The port is the **local port**, not the remote server's port. Use a fixed port on the server and `0` on the client to let the system choose an available port. A socket opening error or an already occupied port may cause the constructor to throw an exception.
 
-| Méthode | Utilisation |
+| Method | Usage |
 | --- | --- |
-| `run()` | Démarre la réception puis exécute la boucle Asio ; appel bloquant dans un thread dédié |
-| `send(packet, destination)` | Transfère un paquet dans la file d’envoi ; l’envoi réel est exécuté par la boucle Asio |
-| `popPacket()` | Retire un paquet reçu, ou renvoie `std::nullopt` immédiatement si la file est vide |
-| `stop()` | Arrête la boucle Asio ; ne joint pas le thread et ne réveille pas `WakeSignal` |
-| `receive()` | Arme une réception ; déjà appelée par `run()`, ne pas l’appeler en plus |
+| `run()` | Starts receiving, then runs the Asio event loop; a blocking call in a dedicated thread |
+| `send(packet, destination)` | Transfers a packet into the outgoing queue; the Asio event loop performs the actual send |
+| `popPacket()` | Removes a received packet, or immediately returns `std::nullopt` if the queue is empty |
+| `stop()` | Stops the Asio event loop; does not join the thread or notify `WakeSignal` |
+| `receive()` | Starts a receive operation; already called by `run()`, so do not call it separately |
 
-Utilisez un seul thread exécutant `run()` par handler. `send()` et `popPacket()` protègent leurs files par mutex et peuvent être appelées depuis le thread applicatif. Le handler doit rester vivant jusqu’à la fin du thread réseau.
+Use one thread running `run()` per handler. `send()` and `popPacket()` protect their queues with mutexes and can be called from the application thread. The handler must remain alive until the networking thread has finished.
 
-Une réception fournit :
+A received item provides:
 
 ```cpp
 Net::IncomingPacket<Net::PacketCodec::Packet>
-// .sender : asio::ip::udp::endpoint (IP et port source)
+// .sender : asio::ip::udp::endpoint (source IP and port)
 // .packet : std::unique_ptr<IPacket>
 ```
 
-## 3. Intégration côté client
+## 3. Client integration
 
-Les extraits suivants se placent dans le cycle de vie du client : initialisation, boucle graphique, puis fermeture.
+Place the following snippets at the appropriate stages of the client lifecycle: initialization, rendering loop, then shutdown.
 
-### Démarrer et envoyer HELLO
+### Start the networking thread and send HELLO
 
 ```cpp
 #include "NetworkHandler.hpp"
@@ -92,7 +92,7 @@ std::thread networkThread([&] {
     try {
         network.run();
     } catch (const std::exception& error) {
-        std::cerr << "Erreur réseau : " << error.what() << '\n';
+        std::cerr << "Network error: " << error.what() << '\n';
         networkFailed.store(true);
         network.stop();
     }
@@ -101,13 +101,13 @@ std::thread networkThread([&] {
 network.send(std::make_unique<Net::HelloPacket>(), server);
 ```
 
-Remplacez l’adresse et le port par ceux du serveur. `127.0.0.1` désigne la machine locale. `make_address` attend une adresse numérique ; pour un nom DNS, utilisez un `asio::ip::udp::resolver` et sélectionnez un endpoint IPv4.
+Replace the address and port with those of the server. `127.0.0.1` refers to the local machine. `make_address` expects a numeric address; for a DNS name, use an `asio::ip::udp::resolver` and select an IPv4 endpoint.
 
-UDP n’établit pas de connexion : HELLO/WELCOME est un échange applicatif. Le handler n’effectue aucune relance automatique si un paquet est perdu.
+UDP does not establish a connection: HELLO/WELCOME is an application-level exchange. The handler does not retry automatically if a packet is lost.
 
-### Consommer les paquets à chaque frame
+### Process packets every frame
 
-Déclarez cet état avant la boucle graphique :
+Declare this state before the rendering loop:
 
 ```cpp
 bool welcomed = false;
@@ -115,7 +115,7 @@ std::uint32_t sessionId = 0;
 std::uint32_t playerEntityId = 0;
 ```
 
-À chaque frame, videz la file sans bloquer le rendu :
+Every frame, drain the queue without blocking rendering:
 
 ```cpp
 while (auto incoming = network.popPacket()) {
@@ -128,18 +128,18 @@ while (auto incoming = network.popPacket()) {
         welcomed = true;
     } else if (auto* snapshot = dynamic_cast<Net::SnapshotPacket*>(incoming->packet.get())) {
         for (const auto& entity : snapshot->entities) {
-            // Mettre à jour l’objet graphique identifié par entity.id :
+            // Update the graphical object identified by entity.id:
             // entity.x, entity.y, entity.kind, entity.health, entity.flags.
         }
     }
 }
 ```
 
-Les pointeurs obtenus par `dynamic_cast` appartiennent à `incoming->packet`. Ne les conservez pas après destruction de ce paquet : copiez les données nécessaires au rendu. Le filtre d’endpoint compare IP et port ; ce n’est pas une authentification.
+The pointers obtained through `dynamic_cast` refer to objects owned by `incoming->packet`. Do not keep them after that packet is destroyed: copy the data needed for rendering. The endpoint filter compares IP address and port; it is not authentication.
 
-### Envoyer les commandes
+### Send player input
 
-Après réception de WELCOME, construisez un nouveau paquet pour chaque envoi :
+After receiving WELCOME, create a new packet for each send:
 
 ```cpp
 if (welcomed) {
@@ -150,17 +150,17 @@ if (welcomed) {
 }
 ```
 
-`buttons = 0` signifie qu’aucune direction n’est active. Pour tester une direction à la réception :
+`buttons = 0` means no direction is active. To check a direction when receiving a packet:
 
 ```cpp
 bool up = (inputPacket.buttons & Net::InputButton::UP) != 0;
 ```
 
-`|` combine les boutons ; `&` teste leur présence. Le protocole actuel accepte seulement `UP`, `DOWN`, `LEFT`, `RIGHT` : aucun bit de tir n’est défini.
+`|` combines buttons; `&` checks whether they are set. The current protocol only accepts `UP`, `DOWN`, `LEFT`, `RIGHT`: no shooting bit is defined.
 
-### Fermer le client
+### Shut down the client
 
-À la fermeture de la fenêtre, ou si `networkFailed` est vrai :
+When the window closes, or if `networkFailed` is true:
 
 ```cpp
 network.stop();
@@ -168,11 +168,11 @@ if (networkThread.joinable())
     networkThread.join();
 ```
 
-Effectuez aussi ce nettoyage si le code applicatif lève une exception après le démarrage du thread. Détruire un `std::thread` encore joignable termine le programme. Le destructeur du handler ne réalise pas ce nettoyage pour vous.
+Also perform this cleanup if application code throws an exception after the thread starts. Destroying a `std::thread` that is still joinable terminates the program. The handler's destructor does not perform this cleanup for you.
 
-## 4. Intégration côté serveur avec WakeSignal
+## 4. Server integration with WakeSignal
 
-Un serveur peut dormir en attendant du travail. L’exemple ci-dessous est une boucle réseau minimale : il attribue un identifiant de session à chaque endpoint et répond aux HELLO. L’intégration du jeu et le déclenchement de l’arrêt restent à brancher dans l’application.
+A server can sleep while waiting for work. The example below is a minimal networking loop: it assigns a session identifier to each endpoint and responds to HELLO packets. Game integration and the shutdown trigger still need to be connected to the application.
 
 ```cpp
 #include "NetworkHandler.hpp"
@@ -190,7 +190,7 @@ void runNetworkServer(std::atomic<bool>& running,
         try {
             network.run();
         } catch (const std::exception& error) {
-            std::cerr << "Erreur réseau : " << error.what() << '\n';
+            std::cerr << "Network error: " << error.what() << '\n';
         }
         running.store(false);
         wake->notify();
@@ -209,8 +209,8 @@ void runNetworkServer(std::atomic<bool>& running,
                         ++nextId;
                     auto welcome = std::make_unique<Net::WelcomePacket>();
                     welcome->header.sessionId = it->second;
-                    // Pour cet exemple, même identifiant pour session et joueur.
-                    // Avec le jeu, utiliser l’identifiant de l’entité réellement créée.
+                    // This example uses the same identifier for the session and player.
+                    // When integrating the game, use the identifier of the entity actually created.
                     welcome->playerEntityId = it->second;
                     network.send(std::move(welcome), incoming->sender);
                 } else if (auto* input = dynamic_cast<Net::InputPacket*>(incoming->packet.get())) {
@@ -218,11 +218,11 @@ void runNetworkServer(std::atomic<bool>& running,
                     if (it == sessions.end() || input->header.sessionId != it->second)
                         continue;
                     const bool up = (input->buttons & Net::InputButton::UP) != 0;
-                    (void)up; // Transmettre les commandes à la file d’entrée du jeu.
+                    (void)up; // Forward the controls to the game input queue.
                 }
             }
-            // Vider ici les autres files associées au même WakeSignal,
-            // par exemple les snapshots produits par le thread de jeu.
+            // Drain the other queues associated with the same WakeSignal here,
+            // such as snapshots produced by the game thread.
         }
     } catch (...) {
         network.stop();
@@ -234,11 +234,11 @@ void runNetworkServer(std::atomic<bool>& running,
 }
 ```
 
-L’appelant crée `std::atomic<bool> running{true}` et `auto wake = std::make_shared<WakeSignal>()`. Un autre thread peut demander l’arrêt avec `running.store(false)` puis `wake->notify()`. Ne faites pas cet appel à `notify()` directement depuis un gestionnaire de signal POSIX : il utilise un mutex.
+The caller creates `std::atomic<bool> running{true}` and `auto wake = std::make_shared<WakeSignal>()`. Another thread can request shutdown with `running.store(false)` followed by `wake->notify()`. Do not call `notify()` directly from a POSIX signal handler: it uses a mutex.
 
-### Diffuser un snapshot
+### Broadcast a snapshot
 
-Construisez les données, puis allouez un paquet par destinataire :
+Build the data, then allocate a packet for each recipient:
 
 ```cpp
 Net::SnapshotPacket snapshot;
@@ -254,62 +254,62 @@ for (const auto& [endpoint, sessionId] : sessions) {
 }
 ```
 
-Un `unique_ptr` ne se copie pas. Après `send(std::move(packet), ...)`, il est nul : ne le réutilisez pas pour un autre client. Ne passez jamais un paquet nul à `send()` : l’implémentation actuelle le déréférence sans vérification lors de la sérialisation.
+A `unique_ptr` cannot be copied. After `send(std::move(packet), ...)`, it is null: do not reuse it for another client. Never pass a null packet to `send()`: the current implementation dereferences it without checking during serialization.
 
-## 5. Bien utiliser WakeSignal
+## 5. Using WakeSignal correctly
 
-`WakeSignal` est une sonnette entre producteurs de travail et consommateur. Il ne contient ni paquet ni résultat : les données restent dans leurs files respectives.
+`WakeSignal` acts as a notification mechanism between work producers and a consumer. It contains neither packets nor results: data remains in the corresponding queues.
 
-- `notify()` mémorise un réveil (`_pending = true`) et réveille un thread en attente.
-- `wait()` bloque jusqu’à ce qu’un réveil soit disponible, puis le consomme (`_pending = false`).
-- Une notification reçue avant `wait()` reste mémorisée : le prochain appel ne bloque pas.
-- Plusieurs notifications peuvent se regrouper en un seul réveil. Ce n’est pas un compteur de paquets.
+- `notify()` records a pending wake-up (`_pending = true`) and wakes one waiting thread.
+- `wait()` blocks until a wake-up is pending, then consumes it (`_pending = false`).
+- A notification received before `wait()` remains pending: the next call does not block.
+- Multiple notifications can merge into a single wake-up. This is not a packet counter.
 
-Le handler notifie automatiquement après avoir ajouté un paquet **valide** à la file de réception. Un paquet invalide est rejeté sans notification. `send()` n’utilise pas ce signal pour déclencher l’envoi : il utilise `asio::post`.
+The handler automatically notifies after adding a **valid** packet to the incoming queue. An invalid packet is rejected without notification. `send()` does not use this signal to trigger sending: it uses `asio::post`.
 
-Après chaque réveil, videz **toutes** les files concernées. Si réseau et jeu partagent le même `shared_ptr<WakeSignal>`, le consommateur doit vérifier à la fois la file réseau et la file de sortie du jeu. Chaque producteur doit déposer ses données sous la protection appropriée, puis appeler `notify()`.
+After each wake-up, drain **all** relevant queues. If networking and game logic share the same `shared_ptr<WakeSignal>`, the consumer must check both the networking queue and the game output queue. Each producer must enqueue its data with appropriate synchronization, then call `notify()`.
 
-Prévoyez un seul consommateur par signal : `notify_one()` ne diffuse pas à tous les threads. Le signal ne remplace pas les mutex des files et ne rend pas les autres objets automatiquement thread-safe.
+Use one consumer per signal: `notify_one()` does not wake every thread. The signal does not replace queue mutexes or automatically make other objects thread-safe.
 
-Dans une boucle graphique, passez `nullptr` au handler et appelez `popPacket()` à chaque frame. Un `wait()` sur le thread de rendu figerait l’affichage en l’absence de trafic. L’API actuelle ne propose pas d’attente avec délai.
+In a rendering loop, pass `nullptr` to the handler and call `popPacket()` every frame. Calling `wait()` on the rendering thread would freeze the display when there is no traffic. The current API does not provide a timed wait.
 
-Pour arrêter un consommateur bloqué, changez son indicateur d’arrêt puis appelez `notify()`. `network.stop()` seul ne débloque pas `wake->wait()`.
+To stop a blocked consumer, update its shutdown flag, then call `notify()`. Calling `network.stop()` alone does not unblock `wake->wait()`.
 
-## 6. Paquets et limites du protocole
+## 6. Packets and protocol limits
 
-Le codec gère la sérialisation : inutile de fabriquer les octets lors d’un usage normal de `send()` et `popPacket()`.
+The codec handles serialization: there is no need to construct bytes manually when using `send()` and `popPacket()` normally.
 
-| Paquet | Sens habituel | Données |
+| Packet | Usual direction | Data |
 | --- | --- | --- |
-| `HelloPacket` | Client → serveur | En-tête seul |
-| `WelcomePacket` | Serveur → client | En-tête et `playerEntityId` |
-| `InputPacket` | Client → serveur | En-tête et masque `buttons` |
-| `SnapshotPacket` | Serveur → client | En-tête, `serverTick`, liste `entities` |
+| `HelloPacket` | Client → server | Header only |
+| `WelcomePacket` | Server → client | Header and `playerEntityId` |
+| `InputPacket` | Client → server | Header and `buttons` bitmask |
+| `SnapshotPacket` | Server → client | Header, `serverTick`, `entities` list |
 
-Chaque en-tête contient `type`, `version`, `sequence` et `sessionId`. Les constructeurs par défaut des paquets concrets initialisent le bon type et la version. Si vous fournissez un `PacketHeader` vous-même, initialisez explicitement son `type`.
+Each header contains `type`, `version`, `sequence` and `sessionId`. The default constructors of concrete packets initialize the correct type and version. If you provide a `PacketHeader` yourself, explicitly initialize its `type`.
 
-`sequence` et `sessionId` valent zéro par défaut. Le handler ne les attribue pas, ne les incrémente pas et ne valide pas leur signification applicative. La gestion des sessions, la sélection des snapshots récents et le traitement des doublons appartiennent au client/serveur.
+`sequence` and `sessionId` default to zero. The handler does not assign or increment them, or validate their application-level meaning. Session management, selecting recent snapshots and handling duplicates are the responsibility of the client/server.
 
-Le format utilise des entiers multi-octets en ordre réseau (big-endian). Les positions sont des flottants encodés sur 32 bits. La limite est de **1 200 octets par paquet**, soit **74 entités par snapshot** (14 octets de base et 16 par entité). Le codec ne découpe pas les snapshots plus grands et ne les réassemble pas.
+The format uses multibyte integers in network byte order (big-endian). Positions are encoded as 32-bit floating-point values. The limit is **1,200 bytes per packet**, or **74 entities per snapshot** (14 base bytes and 16 per entity). The codec does not split larger snapshots or reassemble them.
 
-Le décodage rejette notamment les tailles incorrectes, les versions/types inconnus, les boutons non autorisés, les types d’entité inconnus et les positions non finies. `deserialize()` renvoie alors `nullptr` ; le handler affiche `invalid packet` et poursuit la réception.
+Decoding rejects incorrect sizes, unknown versions/types, unsupported buttons, unknown entity types and non-finite positions. In these cases, `deserialize()` returns `nullptr`; the handler prints `invalid packet` and continues receiving.
 
-La sérialisation peut lever `std::invalid_argument` pour des données invalides. Elle a lieu dans le thread exécutant `run()`, pas nécessairement dans celui qui appelle `send()` : placez un `try/catch` autour de `run()`.
+Serialization may throw `std::invalid_argument` for invalid data. It runs in the thread executing `run()`, not necessarily the one calling `send()`: wrap `run()` in a `try/catch` block.
 
-Voir aussi [la documentation du protocole](protocol.md) ; les définitions effectivement utilisées se trouvent dans [Paquet.hpp](../network/include/Paquet.hpp) et [PacketCodec.cpp](../network/src/PacketCodec.cpp).
+See also the [protocol documentation](protocol.md); the definitions used by the implementation are in [Paquet.hpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/include/Paquet.hpp) and [PacketCodec.cpp](https://github.com/EpitechPGE3-2026/G-ING-500-LIL-5-1-rtype-5/blob/main/network/src/PacketCodec.cpp).
 
-## 7. État actuel et points d’intégration
+## 7. Current state and integration considerations
 
-Le module est un transport UDP : pas de garantie de livraison, d’ordre, d’absence de doublons, de reconnexion, de timeout de session, de chiffrement ou d’authentification intégrés. `send()` ne confirme pas la réception par le destinataire.
+The module is a UDP transport: it provides no delivery or ordering guarantees, duplicate prevention, reconnection, session timeout, encryption or authentication. `send()` does not confirm receipt by the recipient.
 
-La version actuelle conserve les octets d’envoi dans un `shared_ptr` capturé par le callback Asio : leur mémoire reste valide jusqu’à la fin de l’opération. Préservez cette durée de vie si vous modifiez le transport.
+The current version stores outgoing bytes in a `shared_ptr` captured by the Asio callback: their memory remains valid until the operation completes. Preserve this lifetime if you modify the transport.
 
-## 8. Vérifier une intégration
+## 8. Checking an integration
 
-1. Compiler les deux exécutables avec les quatre sources réseau.
-2. Lancer le serveur sur le port choisi, puis le client vers cette IP et ce port.
-3. Vérifier la réception de HELLO puis de WELCOME et les identifiants échangés.
-4. Envoyer INPUT et vérifier le masque de directions côté serveur.
-5. Envoyer un snapshot avec une entité et vérifier ses valeurs côté client.
-6. Connecter un deuxième client pour vérifier la diffusion sans réutilisation d’un `unique_ptr` déplacé.
-7. Fermer sans trafic réseau pour vérifier que les attentes sont réveillées et les threads joints.
+1. Build both executables with the four networking source files.
+2. Start the server on the chosen port, then point the client to that IP address and port.
+3. Check that HELLO and WELCOME are received and verify the exchanged identifiers.
+4. Send INPUT and check the direction bitmask on the server.
+5. Send a snapshot with one entity and check its values on the client.
+6. Connect a second client to check broadcasting without reusing a moved-from `unique_ptr`.
+7. Shut down with no network traffic to check that waiting threads are woken and threads are joined.

@@ -32,6 +32,8 @@ namespace rtype {
             Net::SnapshotPacket convertGameOutput(GameOutput snapshot) const;
 
             void broadcast(Net::SnapshotPacket &packet);
+
+            void removeInactiveClients();
             
         public:
             Server(int port);

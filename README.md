@@ -1,63 +1,83 @@
 # R-Type
 
-R-Type est un projet de jeu de tir spatial multijoueur inspiré du jeu d’arcade du même nom. Les joueurs pilotent un vaisseau et affrontent des ennemis dans une partie partagée en réseau.
+R-Type is a multiplayer space shooter project inspired by the arcade game of the same name. Players pilot a spaceship and face enemies together in a shared online game.
 
-Le projet comprend un serveur qui gère la partie, une logique de jeu pour les joueurs, ennemis et projectiles, ainsi qu’un module réseau commun destiné aux échanges entre le serveur et les clients. Le client a pour rôle d’afficher la partie et de transmettre les commandes du joueur.
+The project includes a server that manages the game, game logic for players, enemies and projectiles, and a shared networking module for communication between the server and clients. The client displays the game and sends player input.
 
 ## Build
 
-### Prérequis
+### Prerequisites
 
-- CMake 3.20 ou supérieur.
-- Un compilateur compatible C++20, comme GCC ou Clang.
-- Make ou Ninja.
-- Les headers d’Asio standalone (`asio.hpp`).
+- CMake 3.20 or later.
+- A C++20-compatible compiler, such as GCC or Clang.
+- Make.
+- Standalone Asio headers (`asio.hpp`).
 
-Toutes les commandes ci-dessous sont à exécuter depuis la racine du dépôt.
+Run all commands below from the repository root.
 
-La configuration CMake actuelle construit le serveur et ses bibliothèques réseau et jeu. Elle ne définit pas encore de cible pour le client.
+The current CMake configuration builds the server and its networking and game libraries. It does not yet define a client target.
 
-### Configurer et compiler
+### Configure and build
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-La première commande configure le projet dans le dossier `build/`. La seconde compile le serveur et ses dépendances. Les fichiers générés restent dans ce dossier.
+The first command configures the project in the `build/` directory. The second builds the server and its dependencies. Generated files remain in that directory.
 
-Pour compiler uniquement la cible serveur et ses dépendances :
+To build only the server target and its dependencies:
 
 ```sh
 cmake --build build --target rtype_server -j
 ```
 
-Après une modification du code, relancer la commande de compilation suffit.
+After changing the code, simply run the build command again.
 
-### Build de débogage
-
-Pour générer un exécutable avec les symboles de débogage, utilisez un dossier distinct :
-
-```sh
-cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-debug --parallel
-```
-
-### Recompiler entièrement
+### Full rebuild
 
 ```sh
 cmake --build build --clean-first -j
 ```
 
-### Lancer le serveur
+### Run the server
 
 ```sh
 ./build/rtype_server
 ```
 
-Le serveur écoute actuellement sur le port UDP **4242**. Pour la version de débogage, utilisez `./build-debug/rtype_server`.
+The server currently listens on UDP port **4242**. For the debug build, use `./build-debug/rtype_server`.
 
 ## Documentation
 
-- [Guide d’utilisation du réseau](docs/network.md)
-- [Protocole réseau](docs/protocol.md)
+- [Networking usage guide](docs/network.md)
+- [Network protocol](docs/protocol.md)
+
+### Documentation website
+
+The documentation is built with MkDocs. From the repository root, create a
+Python environment and install the documentation dependencies:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-docs.txt
+```
+
+Preview the documentation locally:
+
+```sh
+python -m mkdocs serve
+```
+
+Open <http://127.0.0.1:8000>. Changes to the Markdown files are reloaded automatically.
+
+Build the static website and check for documentation warnings:
+
+```sh
+python -m mkdocs build --strict
+```
+
+The generated website is written to `site/`. Edit the pages in `docs/` and the
+navigation in `mkdocs.yml`. Keep the build instructions in this README and
+`docs/build.md` in sync when the build process changes.
