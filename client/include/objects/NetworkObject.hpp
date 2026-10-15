@@ -7,6 +7,7 @@
 #include "Object.hpp"
 #include "NetworkHandler.hpp"
 #include "WakeSignal.hpp"
+#include <unordered_set>
 
 
 namespace rtype {
@@ -19,6 +20,7 @@ namespace rtype {
             std::thread networkThread;
             uint32_t session_id = 0;
             uint32_t sequence = 0;
+            void handle_entity(Object *obj, const Net::EntityState& entity, std::string name);
         public:
             explicit NetworkObject(rtype::ObjectManager& manager_obj);
             ~NetworkObject() override;

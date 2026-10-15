@@ -13,7 +13,8 @@ namespace rtype {
             bool is_moving_up = false;
             bool is_moving_down = false;
             uint32_t entity_id = 0;
-            
+            rtype::InputKeys old_keys{};
+
         public:
             explicit PlayerObject(uint16_t x, uint16_t y, uint16_t dir, rtype::ObjectManager& manager_obj);
             ~PlayerObject() = default;

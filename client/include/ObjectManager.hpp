@@ -19,5 +19,7 @@ namespace rtype {
             rtype::Object* get_object(std::string id);
             const std::map<std::string,std::unique_ptr<rtype::Object>>& get_object_map() const;
             rtype::AssetsPak& get_assets();
+            void remove_object(const std::string& id);
+
     };
 }

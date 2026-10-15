@@ -1,39 +1,37 @@
 ##
 ## EPITECH PROJECT, 2026
-## Raytracer
+## R-Type
 ## File description:
 ## Makefile
 ##
 
-NAME =      rtype_client
+NAME = rtype_client
 
-CXX =       g++
-CXXFLAGS =  -std=c++20 -Wall -Wextra -Werror -fexceptions
+CXX = g++
+CXXFLAGS = -std=c++20 -Wall -Wextra -Werror -fexceptions
+CPPFLAGS = -Iinclude -I../network/include
 
-CPPFLAGS =  -Iinclude \
-			-I../network/include
+LDFLAGS = -lsfml-graphics	\
+          -lsfml-window	\
+          -lsfml-system	\
+          -lcrypto
 
-LDFLAGS =   -lsfml-graphics \
-			-lsfml-window \
-			-lsfml-system \
-			-lcrypto
+SRC = src/main.cpp	\
+      src/Graphic.cpp	\
+      src/AssetsPak.cpp	\
+      src/objects/Object.cpp	\
+      src/Animation.cpp	\
+      src/objects/PlayerObject.cpp	\
+      src/ObjectManager.cpp	\
+      src/objects/ShootLoadingObject.cpp	\
+      src/objects/NetworkObject.cpp	\
+      src/objects/EnemyObject.cpp	\
+      ../network/src/WakeSignal.cpp	\
+      ../network/src/PacketCodec.cpp	\
+      ../network/src/NetworkHandler.cpp	\
+      ../network/src/Paquet.cpp
 
-SRC =       src/main.cpp \
-			src/Graphic.cpp \
-			src/AssetsPak.cpp	\
-			src/objects/Object.cpp	\
-			src/Animation.cpp	\
-			src/objects/PlayerObject.cpp	\
-			src/ObjectManager.cpp	\
-			src/objects/ShootLoadingObject.cpp	\
-			src/objects/NetworkObject.cpp	\
-			src/objects/EnemyObject.cpp	\
-			../network/src/WakeSignal.cpp \
-			../network/src/PacketCodec.cpp \
-			../network/src/NetworkHandler.cpp \
-			../network/src/Paquet.cpp \
-
-OBJ = $(SRC:%.cpp=%.o)
+OBJ = $(SRC:.cpp=.o)
 
 PYTHON = python3
 
@@ -43,21 +41,22 @@ ASSET_PACKER = tools/pack_assets.py
 
 ASSET_FILES = $(shell find $(ASSETS_DIR) -type f)
 
+.PHONY: all clean fclean re
+
+all: $(NAME)
+
 $(ASSETS_ARCHIVE): $(ASSET_FILES) $(ASSET_PACKER)
 	$(PYTHON) $(ASSET_PACKER) $(ASSETS_DIR) $(ASSETS_ARCHIVE)
 
-all: $(ASSETS_ARCHIVE) $(NAME)
-
-$(NAME): $(OBJ)
+$(NAME): $(ASSETS_ARCHIVE) $(OBJ)
 	$(CXX) $(OBJ) -o $@ $(LDFLAGS)
 
+src/AssetsPak.o: $(ASSETS_ARCHIVE)
+
 clean:
-	rm -rf $(OBJ)
-	rm -rf $(ASSETS_ARCHIVE)
+	rm -f $(OBJ)
 
 fclean: clean
-	rm -f $(NAME)
+	rm -f $(NAME) $(ASSETS_ARCHIVE)
 
 re: fclean all
-
-.PHONY: all clean fclean re

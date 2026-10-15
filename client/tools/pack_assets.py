@@ -60,6 +60,24 @@ def test_generate_test_anim3():
             "h": FRAME_H
         })
     return r
+
+def test_generate_test_anim_enemy():
+    # Explosion de particules violettes (3e ligne de r-typesheet1.gif)
+    FRAME_COUNT = 6
+    FRAME_W = 24
+    FRAME_H = 16
+    START_X = 157
+    START_Y = 35
+
+    r = []
+    for i in range(FRAME_COUNT):
+        r.append({
+            "x": START_X + FRAME_W * i,
+            "y": START_Y,
+            "w": FRAME_W,
+            "h": FRAME_H
+        })
+    return r
 def pack_assets(base_folder, output_pak):
     file_lists = []
     add_animation(base_folder, "images/animations/anim1.anim", "images/sheets/r-typesheet35.gif", test_generate_test_anim(), 100)
@@ -67,6 +85,8 @@ def pack_assets(base_folder, output_pak):
     add_animation(base_folder, "images/animations/ship/blue/down.anim", "images/sheets/r-typesheet42.gif", [{"x":66,"y":0,"w":33, "h":17},{"x":33,"y":0,"w":33, "h":17},{"x":0,"y":0,"w":33, "h":17}], 200)
     add_animation(base_folder, "images/animations/ship/blue/up.anim", "images/sheets/r-typesheet42.gif", [{"x":66,"y":0,"w":33, "h":17},{"x":100,"y":0,"w":33, "h":17},{"x":133,"y":0,"w":33, "h":17}], 200)
     add_animation(base_folder, "images/animations/shoot_load.anim", "images/sheets/r-typesheet1.gif", test_generate_test_anim3(), 75)
+    add_animation(base_folder, "images/animations/enemy.anim", "images/sheets/r-typesheet2.gif", test_generate_test_anim_enemy(), 200)
+
 
 
     for root, _, files in os.walk(base_folder):

@@ -7,7 +7,7 @@
 
 rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std::string assets_file) : assets(assets_file), object_manager(assets) {
     window.create(sf::VideoMode({width, height}), title);
-
+    window.setVerticalSyncEnabled(true);
     std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::NetworkObject>(object_manager);
 
     //rtype::Object *ptr = obj.get();

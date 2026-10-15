@@ -16,17 +16,11 @@ void rtype::PlayerObject::set_entity_id(uint32_t id)
 }
 
 void rtype::PlayerObject::update(rtype::InputKeys& keys) {
-    //float deltaTime = objectClock.restart().asSeconds();
     NetworkObject *obj = (NetworkObject *)manager.get_object("network");
-    if (obj && (keys.up || keys.down || keys.right || keys.left)){
+    if (keys != old_keys){
+        old_keys = keys;
         obj->send_input(keys);
     }
-    /*if (keys.right) {
-        move_x(speed * deltaTime);
-    }
-    if (keys.left) {
-        move_x(-speed * deltaTime);
-    }*/
     if (keys.up && !keys.down) {
         set_animation("blue-up");
         if (is_moving_up == false){
@@ -34,7 +28,6 @@ void rtype::PlayerObject::update(rtype::InputKeys& keys) {
             reset_animation();
         }
         is_moving_up = true;
-        //move_y(-speed * deltaTime);
     }
     if (keys.down && !keys.up) {
         set_animation("blue-down");
@@ -43,7 +36,6 @@ void rtype::PlayerObject::update(rtype::InputKeys& keys) {
             reset_animation();
         }
         is_moving_down = true;
-        //move_y(speed * deltaTime);
     }
     if ((!keys.up && !keys.down) || (keys.up && keys.down)){
         if (is_moving_up || is_moving_down){

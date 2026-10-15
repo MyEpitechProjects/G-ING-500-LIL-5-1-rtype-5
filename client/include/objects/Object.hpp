@@ -18,6 +18,19 @@ namespace rtype {
         uint8_t escape : 1;
         uint8_t space : 1;
         uint8_t reserved : 1;
+        bool operator==(const InputKeys& other) const {
+            return left == other.left
+                && up == other.up
+                && right == other.right
+                && down == other.down
+                && shoot == other.shoot
+                && escape == other.escape
+                && space == other.space
+                && reserved == other.reserved;
+        }
+        bool operator!=(const InputKeys& other) const {
+            return !(*this == other);
+        }
     };
 
     class Object {

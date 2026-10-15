@@ -16,12 +16,12 @@ rtype::NetworkObject::NetworkObject(rtype::ObjectManager& manager_obj) : Object(
         std::make_unique<Net::HelloPacket>(),
         server
     );
+    layer = 9999;
 }
 
 void rtype::NetworkObject::send_input(rtype::InputKeys& keys) {
     auto packet = std::make_unique<Net::InputPacket>();
     packet->header.sessionId = session_id;
-    packet->header.sequence = 0;
     packet->buttons = 0;
     if (keys.up)
         packet->buttons |= Net::InputButton::UP;
@@ -34,6 +34,15 @@ void rtype::NetworkObject::send_input(rtype::InputKeys& keys) {
     network.send(std::move(packet), server);
 }
 
+void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntityState& entity, std::string name) {
+    if (entity.flags & Net::EntityFlag::ALIVE) {
+        obj->set_x(entity.x);
+        obj->set_y(entity.y);
+    } else {
+        manager.remove_object(name);
+    }
+}
+
 void rtype::NetworkObject::update(rtype::InputKeys& keys) {
     (void)keys;
     while (auto incoming = network.popPacket()) {
@@ -42,43 +51,38 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
         if (!packet)
             continue;
         if (auto* snapshot = dynamic_cast<Net::SnapshotPacket*>(packet.get())) {
+            PlayerObject *player_obj = (PlayerObject *)manager.get_object("player");
             for (const auto& entity : snapshot->entities) {
-                if (entity.kind == Net::EntityKind::PLAYER){
-                    std::cout << "PLAYER" << std::endl;
+                if (player_obj && player_obj->get_entity_id() == entity.id) {
+                    handle_entity(player_obj, entity, "player");
+                    continue;
                 }
-                PlayerObject *player_obj = (PlayerObject *)manager.get_object("player");
-                Object *obj = nullptr;
-                if (player_obj && player_obj->get_entity_id() == entity.id){
-                    obj = (Object *)obj;
-                } else {
-                    obj = manager.get_object(std::to_string(entity.id));
-                }
-                if (obj) {
-                    obj->set_x(entity.x);
-                    obj->set_y(entity.y);
-                } else {
-                    switch (entity.kind)
-                    {
-                        case Net::EntityKind::ENEMY: {
-                            std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::EnemyObject>(entity.x, entity.y, 0, manager);
 
-                            rtype::Object *ptr = obj.get();
-                            ptr->add_animation("blue-stand", manager.get_assets(), "images/animations/ship/blue/stand.anim");
-                            ptr->set_animation("blue-stand");
-                            manager.add_object(std::to_string(entity.id), obj);
-                            break;
-                        }
-                        case Net::EntityKind::PLAYER:{
-                            std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::EnemyObject>(entity.x, entity.y, 0, manager);
-                            rtype::Object *ptr = obj.get();
-                            ptr->add_animation("blue-stand", manager.get_assets(), "images/animations/ship/blue/stand.anim");
-                            ptr->set_animation("blue-stand");
-                            manager.add_object(std::to_string(entity.id), obj);
-                            break;
-                        }
-                        default:
-                            break;
+                Object* obj = manager.get_object(std::to_string(entity.id));
+                if (obj) {
+                    handle_entity(obj, entity, std::to_string(entity.id));
+                    continue;
+                }
+                switch (entity.kind)
+                {
+                    case Net::EntityKind::ENEMY: {
+                        std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::EnemyObject>(entity.x, entity.y, 0, manager);
+                        rtype::Object *ptr = obj.get();
+                        ptr->add_animation("enemy", manager.get_assets(), "images/animations/enemy.anim");
+                        ptr->set_animation("enemy");
+                        manager.add_object(std::to_string(entity.id), obj);
+                        break;
                     }
+                    case Net::EntityKind::PLAYER:{
+                        std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::EnemyObject>(entity.x, entity.y, 0, manager);
+                        rtype::Object *ptr = obj.get();
+                        ptr->add_animation("blue-stand", manager.get_assets(), "images/animations/ship/blue/stand.anim");
+                        ptr->set_animation("blue-stand");
+                        manager.add_object(std::to_string(entity.id), obj);
+                        break;
+                    }
+                    default:
+                        break;
                 }
             }
         } else if (auto* welcome = dynamic_cast<Net::WelcomePacket*>(packet.get())) {
@@ -93,12 +97,11 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             ptr->set_animation("blue-stand");
             ptr->set_x(200);
             ptr->set_y(200);
-            ((PlayerObject*)ptr)->set_entity_id(welcome->playerEntityId);
+            //((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
+            //std::cout << std::to_string(welcome->entityId) << std::endl;
             manager.add_object("player", obj);
 
             
-
-
 
             obj = std::make_unique<rtype::ShootLoadingObject>(0, 0, 0, manager);
 
