@@ -94,7 +94,7 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
                 return nullptr;
             std::unique_ptr<GameEventPacket> packet = std::make_unique<GameEventPacket>(header);
             packet->eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
-            if (packet->eventType != Net::EventType::ACK || packet->eventType != Net::EventType::DESTROY || packet->eventType != Net::EventType::DISCONNECTED || packet->eventType != Net::EventType::NEW_CLIENT)
+            if (packet->eventType != Net::EventType::ACK && packet->eventType != Net::EventType::DESTROY && packet->eventType != Net::EventType::DISCONNECTED && packet->eventType != Net::EventType::NEW_CLIENT)
                 return nullptr;
             packet->entityId = readU32(data + HEADER_WIRE_SIZE + 1);
             packet->eventId = readU32(data + HEADER_WIRE_SIZE + 5);
