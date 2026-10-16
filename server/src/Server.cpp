@@ -154,7 +154,15 @@ void rtype::Server::removeInactiveClients() {
             std::cout << "remove player : " << it->second.client_id << std::endl;
             GameInput remover{GameInputType::RemovePlayer, it->second.client_id};
             removeList.push_back(remover);
+
+            Net::GameEventPacket disconnectPacket;
+            disconnectPacket.eventType = Net::EventType::DISCONNECTED;
+            disconnectPacket.entityId = it->second.client_id;
+            disconnectPacket.eventId = _idEventCounter;
+            _idEventCounter++;
+
             it = _sessions.erase(it);
+            broadcastEvent(disconnectPacket);
         } else {
             ++it;
         }
