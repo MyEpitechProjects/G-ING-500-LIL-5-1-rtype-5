@@ -48,3 +48,13 @@ std::vector<std::uint8_t> Net::WelcomePacket::serialize() const {
     PacketCodec::writeU32(out, playerEntityId);
     return out;
 }
+
+std::vector<std::uint8_t> Net::GameEventPacket::serialize() const {
+    std::vector<std::uint8_t> out;
+    out.reserve(HEADER_WIRE_SIZE + 9);
+    PacketCodec::writeHeader(out, header, PacketType::EVENT);
+    out.push_back(static_cast<std::uint8_t>(eventType));
+    PacketCodec::writeU32(out, entityId);
+    PacketCodec::writeU32(out, eventId);
+    return out;
+}
