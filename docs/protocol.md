@@ -35,6 +35,7 @@ uniqueness or application-level validity. It does not increment the sequence aut
 | `2` | `SNAPSHOT` | Entity states, server → client | `14 + 16 × N` bytes |
 | `3` | `HELLO` | Connection request, client → server | 8 bytes |
 | `4` | `WELCOME` | Player entity assignment, server → client | 12 bytes |
+| `5` | `EVENT` | Game events, server → client; acknowledgements, client → server | 17 bytes |
 
 These directions describe the purpose of the messages; the codec does not enforce
 their direction or handle connections or sessions itself.
@@ -97,9 +98,51 @@ They can be combined. Other bits in `flags` are currently not rejected by the co
 Coordinates must be finite: NaN and infinities are rejected.
 The codec applies no position limits or application-level constraints to `health` or `id`.
 
+### EVENT — type 5 (`GameEventPacket`)
+
+Every event, including an acknowledgement, uses the same **17-byte** format:
+the common 8-byte header followed by a 9-byte payload.
+
+| Offset | Size | Field | Description |
+| --- | --- | --- | --- |
+| 8 | 1 | `eventType` | Event subtype from the table below |
+| 9 | 4 | `entityId` | Entity concerned by the event; ignored by the server for an ACK |
+| 13 | 4 | `eventId` | Identifier used to acknowledge the event |
+
+| Value | Name | Purpose and current use |
+| --- | --- | --- |
+| `1` | `NEW_CLIENT` | Broadcast when the game creates a player; `entityId` identifies that player entity |
+| `2` | `DESTROY` | Broadcast when the game destroys an entity; `entityId` identifies the destroyed entity |
+| `3` | `ACK` | Client acknowledgement of the event identified by `eventId` |
+| `4` | `DISCONNECTED` | Defined subtype; currently neither emitted nor handled by the server |
+
+The default subtype is `ACK`, and both identifiers default to `0`.
+`eventId` is independent of the common header's `sequence` field.
+
+#### Broadcast, acknowledgements and retries
+
+The server assigns an event identifier and records the event in every current
+session's pending-event map. Each recipient receives its own packet with the same
+`eventId` and `entityId`, but with `header.sessionId` set to that recipient's
+session identifier. This field does not identify the player announced by
+`NEW_CLIENT`.
+
+Pending events are first sent at the end of the server loop iteration. After each
+send, the next retry is scheduled for 200 ms later; the actual send takes place
+when the server loop next checks pending events. Retries retain the event's
+identifier and payload. The attempt counter is incremented, but currently imposes
+no retry limit or expiry while the session remains active.
+
+To acknowledge an event, a client sends an `EVENT` with subtype `ACK`, the same
+`eventId`, and its own `header.sessionId`. The server removes the pending event
+only from the sender endpoint's session, provided the session identifier matches.
+The ACK's `entityId` is ignored and may be zero. An unknown or already acknowledged
+event identifier has no effect on the pending-event map. ACKs are not themselves
+acknowledged. Removing a session also removes its pending events.
+
 ## Validation and errors
 
-`PacketCodec::deserialize()` returns a `std::unique_ptr<IPacket>` holding
+`PacketCodec::deserialize()` returns a `std::shared_ptr<IPacket>` holding
 the decoded concrete type, or `nullptr` if the packet is invalid.
 
 A packet is rejected if:
@@ -115,6 +158,9 @@ The `serialize() const` methods return the packet bytes. They throw
 `std::invalid_argument` if the header version or type does not match the packet,
 if the buttons are invalid, or if the snapshot contains too many entities or an
 invalid entity. An invalid entity is not skipped: snapshot serialization fails.
+
+For `EVENT`, the decoder checks for exactly 17 bytes. The intended subtype check
+accepts only the four values listed above.
 
 ## Hexadecimal examples
 
@@ -142,10 +188,27 @@ Empty SNAPSHOT, version 1, sequence 2, session 42 and server tick 100:
 02 01 00 02 00 00 00 2A 00 00 00 64 00 00
 ```
 
+DESTROY event, version 1, sequence 0, recipient session 42, entity 7 and event 100:
+
+```text
+05 01 00 00 00 00 00 2A 02 00 00 00 07 00 00 00 64
+```
+
+ACK for event 100 from session 42, with the unused entity identifier set to zero:
+
+```text
+05 01 00 00 00 00 00 2A 03 00 00 00 00 00 00 00 64
+```
+
+These event examples describe the wire format; the decoder limitation noted above
+currently prevents their successful decoding.
+
 ## Scope of the current protocol
 
-The format defines no acknowledgements, retransmissions or reassembly of snapshots
-split across multiple datagrams. The codec does not handle UDP packet loss,
+The format defines acknowledgements for game events, with server-side pending-event
+tracking and retransmission as described above. Snapshots are not acknowledged or
+retransmitted, and there is no reassembly of snapshots split across multiple
+datagrams. The codec does not handle UDP packet loss,
 duplication or reordering. It provides no authentication, encryption or validation
 that a sender belongs to a session. These behaviors must be implemented in the
 networking and application layers.
