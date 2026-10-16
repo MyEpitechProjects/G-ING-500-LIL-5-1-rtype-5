@@ -54,6 +54,14 @@ void rtype::Object::set_animation(std::string id)
     sprite.setTexture(animation->get_texture(), true);
 }
 
+void rtype::Object::set_loop(bool status) {
+    rtype::Animation *animation = get_animation(animation_id);
+    if (animation){
+        animation->set_loop(status);
+    }
+}
+
+
 float rtype::Object::get_x() { 
     return x;
 }

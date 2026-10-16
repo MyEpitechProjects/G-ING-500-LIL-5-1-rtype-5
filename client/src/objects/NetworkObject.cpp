@@ -31,11 +31,13 @@ void rtype::NetworkObject::send_input(rtype::InputKeys& keys) {
         packet->buttons |= Net::InputButton::LEFT;
     if (keys.right)
         packet->buttons |= Net::InputButton::RIGHT;
+    if (keys.shoot)
+        packet->buttons |= Net::InputButton::FIRE;
     network.send(std::move(packet), server);
 }
 
 void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntityState& entity, std::string name) {
-    if (entity.flags & Net::EntityFlag::ALIVE) {
+    if (!(entity.flags & Net::EntityFlag::ALIVE)) {
         obj->set_x(entity.x);
         obj->set_y(entity.y);
     } else {
@@ -70,6 +72,7 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
                         rtype::Object *ptr = obj.get();
                         ptr->add_animation("enemy", manager.get_assets(), "images/animations/enemy.anim");
                         ptr->set_animation("enemy");
+                        ptr->set_loop(true);
                         manager.add_object(std::to_string(entity.id), obj);
                         break;
                     }
@@ -78,6 +81,14 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
                         rtype::Object *ptr = obj.get();
                         ptr->add_animation("blue-stand", manager.get_assets(), "images/animations/ship/blue/stand.anim");
                         ptr->set_animation("blue-stand");
+                        manager.add_object(std::to_string(entity.id), obj);
+                        break;
+                    }
+                    case Net::EntityKind::PROJECTILE: {
+                        std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::EnemyObject>(entity.x, entity.y, 0, manager);
+                        rtype::Object *ptr = obj.get();
+                        ptr->add_animation("bullet", manager.get_assets(), "images/animations/bullet.anim");
+                        ptr->set_animation("bullet");
                         manager.add_object(std::to_string(entity.id), obj);
                         break;
                     }
@@ -97,8 +108,8 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             ptr->set_animation("blue-stand");
             ptr->set_x(200);
             ptr->set_y(200);
-            //((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
-            //std::cout << std::to_string(welcome->entityId) << std::endl;
+            ((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
+            std::cout << std::to_string(welcome->entityId) << std::endl;
             manager.add_object("player", obj);
 
             

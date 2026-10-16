@@ -70,5 +70,6 @@ namespace rtype {
             void show();
             float get_x();
             float get_y();
+            void set_loop(bool status);
     };
 }

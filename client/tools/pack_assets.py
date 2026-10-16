@@ -86,6 +86,7 @@ def pack_assets(base_folder, output_pak):
     add_animation(base_folder, "images/animations/ship/blue/up.anim", "images/sheets/r-typesheet42.gif", [{"x":66,"y":0,"w":33, "h":17},{"x":100,"y":0,"w":33, "h":17},{"x":133,"y":0,"w":33, "h":17}], 200)
     add_animation(base_folder, "images/animations/shoot_load.anim", "images/sheets/r-typesheet1.gif", test_generate_test_anim3(), 75)
     add_animation(base_folder, "images/animations/enemy.anim", "images/sheets/r-typesheet2.gif", test_generate_test_anim_enemy(), 200)
+    add_animation(base_folder, "images/animations/bullet.anim", "images/sheets/r-typesheet1.gif", [{"x":214,"y":85,"w":18, "h":12},{"x":232,"y":85,"w":18, "h":12},{"x":250,"y":85,"w":18, "h":12}], 50)
 
 
 
