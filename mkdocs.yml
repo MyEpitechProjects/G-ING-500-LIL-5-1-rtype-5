@@ -10,6 +10,8 @@ theme:
 nav:
   - Home: index.md
   - Build: build.md
+  - Engine: engine.md
+  - Game: game.md
   - Networking guide: network.md
   - Network protocol: protocol.md
 
