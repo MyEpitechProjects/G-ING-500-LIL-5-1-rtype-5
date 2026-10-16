@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-rtype::Server::Server(int port) : _wakeSignal(std::move(std::make_shared<WakeSignal>())), _netHandler(port, _wakeSignal), _game(_wakeSignal), _idCounter(0) {
+rtype::Server::Server(int port) : _wakeSignal(std::move(std::make_shared<WakeSignal>())), _netHandler(port, _wakeSignal), _game(_wakeSignal), _idCounter(0), _idEventCounter(0) {
 
 }
 
@@ -37,17 +37,29 @@ void rtype::Server::run() {
         _wakeSignal->waitFor(std::chrono::milliseconds(500));
 
         removeInactiveClients();
+
         while (auto packet = _netHandler.popPacket()) {
             std::cout << "network packet received" << std::endl;
             handlePacket(packet.value());
         }
-        std::vector<GameOutput> snapshots = _game.takeOutputQueue();
-        for (GameOutput snapshot : snapshots) {
-            if (snapshot.type == GameOutputType::Snapshot) {
-                Net::SnapshotPacket snapPacket = convertGameOutput(snapshot);
-                broadcast(snapPacket);
+
+        std::vector<GameOutput> outputs = _game.takeOutputQueue();
+        for (GameOutput output : outputs) {
+            if (output.type == GameOutputType::Snapshot) {
+                Net::SnapshotPacket snapPacket = convertGameOutput(output);
+                broadcast(std::move(std::make_shared<Net::SnapshotPacket>(snapPacket)));
+            } else if (output.type == GameOutputType::EntityDestroyed || output.type == GameOutputType::PlayerCreated) {
+                Net::GameEventPacket outpacket;
+                outpacket.header.sessionId = output.clientId;
+                outpacket.eventType = output.type == GameOutputType::EntityDestroyed ? Net::EventType::DESTROY : Net::EventType::NEW_CLIENT;
+                outpacket.eventId = _idEventCounter;
+                _idEventCounter++;
+                outpacket.entityId = output.entityId;
+                broadcastEvent(outpacket);
             }
         }
+
+        handlePendingEvents();
     }
 }
 
@@ -61,12 +73,15 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
         _game.addInputQueue(std::vector<GameInput>{addPlayer});
         std::unique_ptr<Net::WelcomePacket> packet = std::make_unique<Net::WelcomePacket>(weclome);
         _netHandler.send(std::move(packet), incomingPacket.sender);
-    }
-    if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
+    } else if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
         Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, (packet->buttons & Net::InputButton::FIRE) != 0};
         if (_sessions.find(incomingPacket.sender) != _sessions.end() && _sessions.at(incomingPacket.sender).client_id == packet->header.sessionId) {
             GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
             _game.addInputQueue(std::vector<GameInput>{eventPacket});
+        }
+    } else if (auto packet = dynamic_cast<Net::GameEventPacket*>(incomingPacket.packet.get())) {
+        if (packet->eventType == Net::EventType::ACK) {
+            erasePendingEvent(incomingPacket.sender, packet->eventId, packet->header.sessionId);
         }
     }
     if (_sessions.find(incomingPacket.sender) != _sessions.end())
@@ -75,7 +90,7 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
 
 Session rtype::Server::createSession(asio::ip::udp::endpoint endpoint) {
     if (!_sessions.contains(endpoint)) {
-        _sessions.insert({endpoint, Session{_idCounter}});
+        _sessions.insert({endpoint, Session{_idCounter, {}}});
         _idCounter++;
     }
 
@@ -115,9 +130,17 @@ Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const 
     return packet;
 }
 
-void rtype::Server::broadcast(Net::SnapshotPacket &packet) {
+void rtype::Server::broadcast(Net::PacketCodec::Packet packet) {
     for (const auto &[endpoint, session] : _sessions) {
-        _netHandler.send(std::make_unique<Net::SnapshotPacket>(packet), endpoint);
+        _netHandler.send(packet, endpoint);
+    }
+}
+
+void rtype::Server::broadcastEvent(Net::GameEventPacket outPacket) {
+    const auto now = std::chrono::steady_clock::now();
+    for (auto &[endpoint, session] : _sessions) {
+        outPacket.header.sessionId = session.client_id;
+        session.pendingEvents.insert({outPacket.eventId, PendingEvent{std::make_shared<Net::GameEventPacket>(outPacket), now}});
     }
 }
 
@@ -137,4 +160,37 @@ void rtype::Server::removeInactiveClients() {
         }
     }
     _game.addInputQueue(std::vector<GameInput>(removeList));
+}
+
+void rtype::Server::insertPendingEvent(std::size_t client_id, PendingEvent event, std::uint32_t event_id) {
+    for (auto it = _sessions.begin(); it != _sessions.end();) {
+        if (it->second.client_id == client_id) {
+            it->second.pendingEvents.insert({event_id, event});
+            return;
+        } else {
+            ++it;
+        }
+    }
+}
+
+void rtype::Server::erasePendingEvent(asio::ip::udp::endpoint sender, std::uint32_t event_id, std::size_t sessionId) {
+    if (_sessions.find(sender) != _sessions.end() && _sessions.at(sender).pendingEvents.find(event_id) != _sessions.at(sender).pendingEvents.end()
+        && _sessions.at(sender).client_id == sessionId) {
+        _sessions.at(sender).pendingEvents.erase(event_id);
+    }
+}
+
+void rtype::Server::handlePendingEvents() {
+    const auto now = std::chrono::steady_clock::now();
+    for (auto it = _sessions.begin(); it != _sessions.end();) {
+        for (auto it_second = it->second.pendingEvents.begin(); it_second != it->second.pendingEvents.end();) {
+            if (now >= it_second->second.nextRetry) {
+                _netHandler.send(it_second->second.packet, it->first);
+                it_second->second.attempts++;
+                it_second->second.nextRetry = now + std::chrono::milliseconds(200);
+            }
+            it_second++;
+        }
+        it++;
+    }
 }
