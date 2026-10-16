@@ -114,7 +114,7 @@ the common 8-byte header followed by a 9-byte payload.
 | `1` | `NEW_CLIENT` | Broadcast when the game creates a player; `entityId` identifies that player entity |
 | `2` | `DESTROY` | Broadcast when the game destroys an entity; `entityId` identifies the destroyed entity |
 | `3` | `ACK` | Client acknowledgement of the event identified by `eventId` |
-| `4` | `DISCONNECTED` | Defined subtype; currently neither emitted nor handled by the server |
+| `4` | `DISCONNECTED` | Defined subtype|
 
 The default subtype is `ACK`, and both identifiers default to `0`.
 `eventId` is independent of the common header's `sequence` field.
