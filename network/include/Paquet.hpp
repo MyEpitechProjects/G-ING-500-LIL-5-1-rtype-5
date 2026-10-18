@@ -21,6 +21,14 @@ namespace Net {
         SNAPSHOT = 2,
         HELLO = 3,
         WELCOME = 4,
+        EVENT = 5,
+    };
+
+    enum EventType : std::uint8_t {
+        NEW_CLIENT = 1,
+        DESTROY = 2,
+        ACK = 3,
+        DISCONNECTED = 4,
     };
 
     enum InputButton : std::uint16_t {
@@ -114,6 +122,24 @@ namespace Net {
 
         PacketHeader header{PacketType::WELCOME};
         std::uint32_t playerEntityId = 0;
+
+        std::vector<std::uint8_t> serialize() const override;
+    };
+
+    /*
+    ** GAME EVENT PACKET
+    */
+     
+    struct GameEventPacket : IPacket {
+        GameEventPacket() = default;
+        GameEventPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~GameEventPacket() override = default;
+
+        PacketHeader header{PacketType::EVENT};
+        EventType eventType = EventType::ACK;
+
+        std::uint32_t entityId = 0;
+        std::uint32_t eventId = 0;
 
         std::vector<std::uint8_t> serialize() const override;
     };

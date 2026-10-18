@@ -21,7 +21,7 @@ namespace Net {
             PacketCodec() = default;
             ~PacketCodec() = default;
 
-            using Packet = std::unique_ptr<IPacket>;
+            using Packet = std::shared_ptr<IPacket>;
 
             static void writeU16(std::vector<std::uint8_t>& out, std::uint16_t value);
             static void writeU32(std::vector<std::uint8_t>& out, std::uint32_t value);
