@@ -108,8 +108,8 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             ptr->set_animation("blue-stand");
             ptr->set_x(200);
             ptr->set_y(200);
-            ((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
-            std::cout << std::to_string(welcome->entityId) << std::endl;
+            ((PlayerObject*)ptr)->set_entity_id(welcome->playerEntityId);
+            std::cout << std::to_string(welcome->playerEntityId) << std::endl;
             manager.add_object("player", obj);
 
             
