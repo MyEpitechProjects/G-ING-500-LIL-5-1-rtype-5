@@ -3,7 +3,8 @@
 #include "objects/EnemyObject.hpp"
 #include "objects/ShootLoadingObject.hpp"
 
-rtype::NetworkObject::NetworkObject(rtype::ObjectManager& manager_obj) : Object(manager_obj), wake(std::make_shared<WakeSignal>()), network(0, wake), server(asio::ip::make_address("127.0.0.1"), 4242) {
+rtype::NetworkObject::NetworkObject(rtype::ObjectManager& manager_obj,
+    asio::ip::udp::endpoint server_endpoint) : Object(manager_obj), wake(std::make_shared<WakeSignal>()), network(0, wake), server(server_endpoint) {
     networkThread = std::thread([this]() {
         try {
             network.run();
@@ -46,6 +47,8 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
     (void)keys;
     while (auto incoming = network.popPacket()) {
         auto message = std::move(*incoming);
+        if (message.sender != server)
+            continue;
         auto& packet = message.packet;
         if (!packet)
             continue;

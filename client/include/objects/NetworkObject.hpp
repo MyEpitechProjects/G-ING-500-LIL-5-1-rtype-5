@@ -24,7 +24,8 @@ namespace rtype {
             uint32_t sequence = 0;
             void handle_entity(Object *obj, const Net::EntityState& entity);
         public:
-            explicit NetworkObject(rtype::ObjectManager& manager_obj);
+            explicit NetworkObject(rtype::ObjectManager& manager_obj,
+                asio::ip::udp::endpoint server_endpoint);
             ~NetworkObject() override;
             void update(rtype::InputKeys& keys) override;
             void send_input(rtype::InputKeys& keys);

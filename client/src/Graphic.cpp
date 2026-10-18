@@ -5,10 +5,11 @@
 
 #include <algorithm>
 
-rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std::string assets_file) : assets(assets_file), object_manager(assets) {
+rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std::string assets_file,
+    asio::ip::udp::endpoint server_endpoint) : assets(assets_file), object_manager(assets) {
     window.create(sf::VideoMode({width, height}), title);
     window.setVerticalSyncEnabled(true);
-    std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::NetworkObject>(object_manager);
+    std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::NetworkObject>(object_manager, server_endpoint);
 
     object_manager.add_object("network", obj);
 }
