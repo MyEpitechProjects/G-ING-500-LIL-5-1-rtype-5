@@ -3,6 +3,7 @@
 
     #include <asio.hpp>
     #include <chrono>
+    #include <unordered_map>
 
     struct PendingEvent {
         std::shared_ptr<IPacket> packet;

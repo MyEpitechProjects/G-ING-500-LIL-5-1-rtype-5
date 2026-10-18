@@ -1,4 +1,5 @@
 #include "PacketCodec.hpp"
+#include <cstring>
 
 void Net::PacketCodec::writeU16(std::vector<std::uint8_t>& out, std::uint16_t value)
 {
@@ -81,9 +82,14 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
             packet->entities.reserve(count);
             for (std::size_t i = 0; i < count; ++i) {
                 const auto* entry = data + SNAPSHOT_BASE_WIRE_SIZE + i * ENTITY_WIRE_SIZE;
+                const std::uint32_t xBits = readU32(entry + 5);
+                const std::uint32_t yBits = readU32(entry + 9);
+                float x;
+                float y;
+                std::memcpy(&x, &xBits, sizeof(x));
+                std::memcpy(&y, &yBits, sizeof(y));
                 EntityState entity{readU32(entry), static_cast<EntityKind>(entry[4]),
-                    std::bit_cast<float, uint32_t>(readU32(entry + 5)),
-                    std::bit_cast<float, uint32_t>(readU32(entry + 9)),
+                    x, y,
                     readU16(entry + 13), entry[15]};
                 if (!validEntity(entity))
                     return nullptr;

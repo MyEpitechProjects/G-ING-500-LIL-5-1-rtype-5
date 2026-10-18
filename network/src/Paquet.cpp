@@ -1,5 +1,6 @@
 #include "Paquet.hpp"
 #include "PacketCodec.hpp"
+#include <cstring>
 
 std::vector<std::uint8_t> Net::InputPacket::serialize() const {
     if ((buttons & BUTTON_MASK) != buttons)
@@ -23,8 +24,12 @@ std::vector<std::uint8_t> Net::SnapshotPacket::serialize() const {
         if (PacketCodec::validEntity(entity)) {
             PacketCodec::writeU32(out, entity.id);
             out.push_back(static_cast<std::uint8_t>(entity.kind));
-            PacketCodec::writeU32(out, std::bit_cast<std::uint32_t, float>(entity.x));
-            PacketCodec::writeU32(out, std::bit_cast<std::uint32_t, float>(entity.y));
+            std::uint32_t xBits;
+            std::uint32_t yBits;
+            std::memcpy(&xBits, &entity.x, sizeof(xBits));
+            std::memcpy(&yBits, &entity.y, sizeof(yBits));
+            PacketCodec::writeU32(out, xBits);
+            PacketCodec::writeU32(out, yBits);
             PacketCodec::writeU16(out, entity.health);
             out.push_back(entity.flags);
         } else {

@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-rtype::Server::Server(int port) : _wakeSignal(std::move(std::make_shared<WakeSignal>())), _netHandler(port, _wakeSignal), _game(_wakeSignal), _idCounter(0), _idEventCounter(0) {
+rtype::Server::Server(int port) : _wakeSignal(std::make_shared<WakeSignal>()), _netHandler(port, _wakeSignal), _game(_wakeSignal), _idCounter(0), _idEventCounter(0) {
 
 }
 
@@ -47,7 +47,7 @@ void rtype::Server::run() {
         for (GameOutput output : outputs) {
             if (output.type == GameOutputType::Snapshot) {
                 Net::SnapshotPacket snapPacket = convertGameOutput(output);
-                broadcast(std::move(std::make_shared<Net::SnapshotPacket>(snapPacket)));
+                broadcast(std::make_shared<Net::SnapshotPacket>(snapPacket));
             } else if (output.type == GameOutputType::PlayerCreated) {
                 auto sessionIt = std::find_if(
                     _sessions.begin(),
