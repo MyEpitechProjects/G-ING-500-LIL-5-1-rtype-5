@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <chrono>
 #include <optional>
 #include <vector>
 #include "AssetsPak.hpp"
@@ -22,6 +23,7 @@ namespace rtype {
             std::thread networkThread;
             uint32_t session_id = 0;
             uint32_t sequence = 0;
+            std::chrono::steady_clock::time_point lastInputSent = std::chrono::steady_clock::now();
             void handle_entity(Object *obj, const Net::EntityState& entity);
         public:
             explicit NetworkObject(rtype::ObjectManager& manager_obj,

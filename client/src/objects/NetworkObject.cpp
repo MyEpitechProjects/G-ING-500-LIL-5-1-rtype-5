@@ -36,6 +36,7 @@ void rtype::NetworkObject::send_input(rtype::InputKeys& keys) {
     if (keys.shoot)
         packet->buttons |= Net::InputButton::FIRE;
     network.send(std::move(packet), server);
+    lastInputSent = std::chrono::steady_clock::now();
 }
 
 void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntityState& entity) {
@@ -44,7 +45,6 @@ void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntitySt
 }
 
 void rtype::NetworkObject::update(rtype::InputKeys& keys) {
-    (void)keys;
     while (auto incoming = network.popPacket()) {
         auto message = std::move(*incoming);
         if (message.sender != server)
@@ -135,6 +135,8 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             }
         }
     }
+    if (connected && std::chrono::steady_clock::now() - lastInputSent >= std::chrono::seconds(1))
+        send_input(keys);
 }
 
 bool rtype::NetworkObject::is_connected()
