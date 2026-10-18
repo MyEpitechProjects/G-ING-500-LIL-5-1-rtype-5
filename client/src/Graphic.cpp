@@ -10,32 +10,7 @@ rtype::Graphic::Graphic(uint16_t width, uint16_t height, std::string title, std:
     window.setVerticalSyncEnabled(true);
     std::unique_ptr<rtype::Object> obj = std::make_unique<rtype::NetworkObject>(object_manager);
 
-    //rtype::Object *ptr = obj.get();
     object_manager.add_object("network", obj);
-
-    /*obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, object_manager);
-
-    ptr = obj.get();
-    ptr->add_animation("blue-stand", assets, "images/animations/ship/blue/stand.anim");
-    ptr->add_animation("blue-down", assets, "images/animations/ship/blue/down.anim");
-    ptr->add_animation("blue-up", assets, "images/animations/ship/blue/up.anim");
-    ptr->set_animation("blue-stand");
-
-    object_manager.add_object("player", obj);
-
-
-
-    obj = std::make_unique<rtype::ShootLoadingObject>(0, 0, 0, object_manager);
-
-    ptr = obj.get();
-    ptr->add_animation("anim", assets, "images/animations/shoot_load.anim");
-    ptr->set_animation("anim");
-    rtype::Animation *anim = ptr->get_animation("anim");
-    anim->set_loop(true);
-    object_manager.add_object("gun", obj);*/
-
-
-
 }
 
 rtype::Graphic::~Graphic() {
@@ -61,17 +36,33 @@ void rtype::Graphic::handle_objects(rtype::InputKeys keys) {
     }
 }
 
+bool rtype::Graphic::is_connected() {
+    rtype::NetworkObject* obj = (rtype::NetworkObject*)object_manager.get_object("network");
+
+    if (!obj){
+        return false;
+    }
+    return obj->is_connected() || !obj->has_started();
+}
+
 
 void rtype::Graphic::run() {
     rtype::InputKeys keys{};
 
     while (window.isOpen()) {
         keys = {};
+        if (!is_connected()){
+            object_manager.remove_all();
+            window.close();
+            return;
+        }
         while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>())
+            if (event->is<sf::Event::Closed>()){
+                object_manager.remove_all();
                 window.close();
-            else if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {                    
+            } else if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {                    
                 if (key->code == sf::Keyboard::Key::Escape){
+                    object_manager.remove_all();
                     window.close();
                 }
             }
@@ -84,6 +75,7 @@ void rtype::Graphic::run() {
         keys.shoot  = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X);
         keys.space  = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
         if (keys.escape){
+            object_manager.remove_all();
             window.close();
         }
         window.clear(sf::Color(30, 30, 30));

@@ -12,6 +12,7 @@ namespace rtype {
             sf::RenderWindow window;
             AssetsPak assets;
             ObjectManager object_manager;
+            bool is_connected();
         public:
             Graphic(uint16_t width, uint16_t height, std::string title, std::string assets_file);
             ~Graphic();

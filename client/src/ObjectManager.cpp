@@ -15,13 +15,18 @@ rtype::Object* rtype::ObjectManager::get_object(std::string id) {
     return it->second.get();
 }
 
+void rtype::ObjectManager::remove_all()
+{
+    objects.clear();
+}
+
+
 void rtype::ObjectManager::remove_object(const std::string& id)
 {
     auto it = objects.find(id);
 
     if (it == objects.end())
         return;
-
     objects.erase(it);
 }
 

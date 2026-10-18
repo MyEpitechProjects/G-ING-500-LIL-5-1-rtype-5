@@ -8,6 +8,7 @@ rtype::NetworkObject::NetworkObject(rtype::ObjectManager& manager_obj) : Object(
         try {
             network.run();
         } catch (const std::exception& error) {
+            connected = false;
             std::cerr << "Erreur du thread réseau : "
                       << error.what() << '\n';
         }
@@ -36,13 +37,9 @@ void rtype::NetworkObject::send_input(rtype::InputKeys& keys) {
     network.send(std::move(packet), server);
 }
 
-void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntityState& entity, std::string name) {
-    if (!(entity.flags & Net::EntityFlag::ALIVE)) {
-        obj->set_x(entity.x);
-        obj->set_y(entity.y);
-    } else {
-        manager.remove_object(name);
-    }
+void rtype::NetworkObject::handle_entity(rtype::Object *obj, const Net::EntityState& entity) {
+    obj->set_x(entity.x);
+    obj->set_y(entity.y);
 }
 
 void rtype::NetworkObject::update(rtype::InputKeys& keys) {
@@ -56,13 +53,13 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             PlayerObject *player_obj = (PlayerObject *)manager.get_object("player");
             for (const auto& entity : snapshot->entities) {
                 if (player_obj && player_obj->get_entity_id() == entity.id) {
-                    handle_entity(player_obj, entity, "player");
+                    handle_entity(player_obj, entity);
                     continue;
                 }
 
                 Object* obj = manager.get_object(std::to_string(entity.id));
                 if (obj) {
-                    handle_entity(obj, entity, std::to_string(entity.id));
+                    handle_entity(obj, entity);
                     continue;
                 }
                 switch (entity.kind)
@@ -98,7 +95,8 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             }
         } else if (auto* welcome = dynamic_cast<Net::WelcomePacket*>(packet.get())) {
             session_id = welcome->header.sessionId;
-            std::cout << std::to_string(session_id) << std::endl;
+            started = true;
+            connected = true;
             std::unique_ptr<rtype::Object>  obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, manager);
 
             rtype::Object *ptr = obj.get();
@@ -109,7 +107,6 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             ptr->set_x(200);
             ptr->set_y(200);
             ((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
-            std::cout << std::to_string(welcome->entityId) << std::endl;
             manager.add_object("player", obj);
 
             
@@ -122,13 +119,34 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             rtype::Animation *anim = ptr->get_animation("anim");
             anim->set_loop(true);
             manager.add_object("gun", obj);
+        } else if (auto* event = dynamic_cast<Net::GameEventPacket*>(packet.get())) {
+            if (event->eventType == Net::EventType::DESTROY || event->eventType == Net::EventType::DISCONNECTED){
+                PlayerObject *obj = (PlayerObject *)manager.get_object("player");
+                if (obj && event->entityId == obj->get_entity_id()){
+                    connected = false;
+                    manager.remove_object("player");
+                    manager.remove_object("gun");
+                } else {
+                    manager.remove_object(std::to_string(event->entityId));
+                }
+            }
         }
     }
 }
 
+bool rtype::NetworkObject::is_connected()
+{
+    return connected;
+}
+
+bool rtype::NetworkObject::has_started()
+{
+    return started;
+}
+
 rtype::NetworkObject::~NetworkObject() {
     network.stop();
-
+    connected = false;
     if (networkThread.joinable())
         networkThread.join();
 }
