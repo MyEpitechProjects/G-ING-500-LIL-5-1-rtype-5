@@ -15,7 +15,7 @@ The project includes a server that manages the game, game logic for players, ene
 
 Run all commands below from the repository root.
 
-The current CMake configuration builds the server and its networking and game libraries. It does not yet define a client target.
+The CMake configuration builds both the server and the client.
 
 ### Configure and build
 
@@ -24,7 +24,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-The first command configures the project in the `build/` directory. The second builds the server and its dependencies. Generated files remain in that directory.
+The first command configures the project in the `build/` directory. The second builds the server and client. Generated files remain in that directory.
 
 To build only the server target and its dependencies:
 
@@ -47,6 +47,17 @@ cmake --build build --clean-first -j
 ```
 
 The server currently listens on UDP port **4242**. For the debug build, use `./build-debug/rtype_server`.
+
+### Run the client
+
+Run the client from the build directory so it can find `assets.pak`:
+
+```sh
+cd build
+./rtype_client 192.168.1.10
+```
+
+Replace the example with the server's IPv4 address. Without an address, the client connects to `127.0.0.1` on UDP port **4242**.
 
 ## Documentation
 
