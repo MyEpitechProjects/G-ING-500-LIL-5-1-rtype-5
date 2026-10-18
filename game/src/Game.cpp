@@ -128,22 +128,22 @@ namespace rtype {
         _lastUpdate = now;
 
         CooldownSystem{}(_registry, elapsedSeconds);
-        ControlSystem{}(_registry, _entities, playerSpeed);
-        ShotSystem{}(_registry, _entities, shotInterval,
+        ControlSystem{}(_registry, playerSpeed);
+        ShotSystem{}(_registry, shotInterval,
             [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
         );
-        EnemySystem{}(_registry, _entities, _tick, enemyInterval, height,
+        EnemySystem{}(_registry, _tick, enemyInterval, height,
             [this](int y) { spawnEnemy(y); },
             [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
         );
         PositionSystem{}(_registry);
-        BoundsSystem{}(_registry, _entities, width, height,
+        BoundsSystem{}(_registry, width, height,
             [this](Entity entity) { destroyEntity(entity); }
         );
-        ProjectileCollisionSystem{}(_registry, _entities, _score,
+        ProjectileCollisionSystem{}(_registry, _score,
             [this](Entity entity) { destroyEntity(entity); }
         );
-        EnemyCollisionSystem{}(_registry, _entities,
+        EnemyCollisionSystem{}(_registry,
             [this](Entity entity) { destroyEntity(entity); }
         );
         SnapshotSystem{}(_registry, _entities, _tick, _score, _out, _outMutex);
