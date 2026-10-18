@@ -66,7 +66,8 @@ void rtype::Server::run() {
                         sessionIt->first
                     );
                 }
-            } else if (output.type == GameOutputType::EntityDestroyed || output.type == GameOutputType::PlayerCreated) {
+            }
+            if (output.type == GameOutputType::EntityDestroyed || output.type == GameOutputType::PlayerCreated) {
                 Net::GameEventPacket outpacket;
                 outpacket.header.sessionId = output.clientId;
                 outpacket.eventType = output.type == GameOutputType::EntityDestroyed ? Net::EventType::DESTROY : Net::EventType::NEW_CLIENT;
@@ -89,8 +90,6 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
         weclome.playerEntityId = playerSession.client_id;
         GameInput addPlayer{GameInputType::AddPlayer, playerSession.client_id};
         _game.addInputQueue(std::vector<GameInput>{addPlayer});
-        std::unique_ptr<Net::WelcomePacket> packet = std::make_unique<Net::WelcomePacket>(weclome);
-        _netHandler.send(std::move(packet), incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
         Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, (packet->buttons & Net::InputButton::FIRE) != 0};
         if (_sessions.find(incomingPacket.sender) != _sessions.end() && _sessions.at(incomingPacket.sender).client_id == packet->header.sessionId) {
