@@ -54,10 +54,11 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
                 return nullptr;
             return std::make_unique<HelloPacket>(header);
         } case PacketType::WELCOME: {
-            if (size != HEADER_WIRE_SIZE + 4)
+            if (size != HEADER_WIRE_SIZE + 8)
                 return nullptr;
             std::unique_ptr<WelcomePacket> packet = std::make_unique<WelcomePacket>(header);
             packet->playerEntityId = readU32(data + HEADER_WIRE_SIZE);
+            packet->entityId = readU32(data + HEADER_WIRE_SIZE + sizeof(packet->playerEntityId));
             return packet;
         } case PacketType::INPUT: {
             if (size != HEADER_WIRE_SIZE + 2)

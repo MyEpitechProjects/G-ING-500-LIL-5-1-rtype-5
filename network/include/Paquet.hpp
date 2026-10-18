@@ -122,6 +122,7 @@ namespace Net {
 
         PacketHeader header{PacketType::WELCOME};
         std::uint32_t playerEntityId = 0;
+        std::uint32_t entityId = 0;
 
         std::vector<std::uint8_t> serialize() const override;
     };

@@ -43,9 +43,10 @@ std::vector<std::uint8_t> Net::HelloPacket::serialize() const {
 
 std::vector<std::uint8_t> Net::WelcomePacket::serialize() const {
     std::vector<std::uint8_t> out;
-    out.reserve(HEADER_WIRE_SIZE + 4);
+    out.reserve(HEADER_WIRE_SIZE + 8);
     PacketCodec::writeHeader(out, header, PacketType::WELCOME);
     PacketCodec::writeU32(out, playerEntityId);
+    PacketCodec::writeU32(out, entityId);
     return out;
 }
 

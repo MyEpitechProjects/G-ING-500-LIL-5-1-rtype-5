@@ -48,6 +48,24 @@ void rtype::Server::run() {
             if (output.type == GameOutputType::Snapshot) {
                 Net::SnapshotPacket snapPacket = convertGameOutput(output);
                 broadcast(std::move(std::make_shared<Net::SnapshotPacket>(snapPacket)));
+            } else if (output.type == GameOutputType::PlayerCreated) {
+                auto sessionIt = std::find_if(
+                    _sessions.begin(),
+                    _sessions.end(),
+                    [&output](const auto& entry) {
+                        return entry.second.client_id == output.clientId;
+                    }
+                );
+                if (sessionIt != _sessions.end()) {
+                    Net::WelcomePacket welcome;
+                    welcome.header.sessionId = sessionIt->second.client_id;
+                    welcome.playerEntityId = output.clientId;
+                    welcome.entityId = output.entityId;
+                    _netHandler.send(
+                        std::make_unique<Net::WelcomePacket>(welcome),
+                        sessionIt->first
+                    );
+                }
             } else if (output.type == GameOutputType::EntityDestroyed || output.type == GameOutputType::PlayerCreated) {
                 Net::GameEventPacket outpacket;
                 outpacket.header.sessionId = output.clientId;
