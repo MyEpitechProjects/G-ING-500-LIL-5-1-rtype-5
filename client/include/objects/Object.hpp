@@ -18,6 +18,19 @@ namespace rtype {
         uint8_t escape : 1;
         uint8_t space : 1;
         uint8_t reserved : 1;
+        bool operator==(const InputKeys& other) const {
+            return left == other.left
+                && up == other.up
+                && right == other.right
+                && down == other.down
+                && shoot == other.shoot
+                && escape == other.escape
+                && space == other.space
+                && reserved == other.reserved;
+        }
+        bool operator!=(const InputKeys& other) const {
+            return !(*this == other);
+        }
     };
 
     class Object {
@@ -37,7 +50,8 @@ namespace rtype {
             
         public:
             Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj);
-            ~Object();
+            Object(rtype::ObjectManager& manager_obj);
+            virtual ~Object();
             const sf::Sprite& get_sprite() const;
             rtype::Animation* get_animation(std::string id);
             virtual void update(rtype::InputKeys& keys) = 0;
@@ -56,5 +70,6 @@ namespace rtype {
             void show();
             float get_x();
             float get_y();
+            void set_loop(bool status);
     };
 }

@@ -29,7 +29,6 @@ rtype::Animation::Animation(std::vector<uint8_t> data, rtype::AssetsPak& assets)
     offset += base_texture_l;
 
     auto texture_data = assets.get_asset(base_texture);
-    std::cout << base_texture << std::endl;
 
     if (!texture_data || texture_data->empty())
         throw std::runtime_error("Failed to load 3");
@@ -80,17 +79,35 @@ const sf::Texture& rtype::Animation::get_texture() const {
     return texture; 
 }
 
-const rtype::Frame& rtype::Animation::next_frame() {
-    int64_t elapsed = animationClock.getElapsedTime().asMicroseconds();
-    int64_t delayTime = animationDelay.asMicroseconds();
+const rtype::Frame& rtype::Animation::next_frame()
+{
+    if (size == 0)
+        throw std::runtime_error("Animation has no frames");
 
-    if (elapsed < (delayTime * size)){
-        return get_frame(elapsed / delayTime);
-    } else if (loop) {
-        animationClock.restart();
+    const int64_t delayTime = animationDelay.asMicroseconds();
+
+    if (delayTime <= 0)
         return get_frame(0);
+
+    const int64_t elapsed =
+        animationClock.getElapsedTime().asMicroseconds();
+
+    const int64_t totalDuration = delayTime * size;
+
+    if (loop) {
+        const uint64_t frameIndex =
+            static_cast<uint64_t>(elapsed / delayTime) % size;
+
+        return get_frame(static_cast<uint32_t>(frameIndex));
     }
-    return get_frame(size - 1);
+
+    if (elapsed >= totalDuration)
+        return get_frame(static_cast<uint32_t>(size - 1));
+
+    const uint32_t frameIndex =
+        static_cast<uint32_t>(elapsed / delayTime);
+
+    return get_frame(frameIndex);
 }
 
 const rtype::Frame& rtype::Animation::get_frame(uint32_t frame_index) const {

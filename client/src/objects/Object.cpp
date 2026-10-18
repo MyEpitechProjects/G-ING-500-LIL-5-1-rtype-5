@@ -1,5 +1,9 @@
 #include "objects/Object.hpp"
 
+rtype::Object::Object(rtype::ObjectManager& manager_obj) : sprite(blank_texture), manager(manager_obj)
+{
+}
+
 rtype::Object::Object(float x, float y, uint16_t dir, rtype::ObjectManager& manager_obj) : sprite(blank_texture), manager(manager_obj)
 {
     (void)dir;
@@ -49,6 +53,14 @@ void rtype::Object::set_animation(std::string id)
     animation_id = id;
     sprite.setTexture(animation->get_texture(), true);
 }
+
+void rtype::Object::set_loop(bool status) {
+    rtype::Animation *animation = get_animation(animation_id);
+    if (animation){
+        animation->set_loop(status);
+    }
+}
+
 
 float rtype::Object::get_x() { 
     return x;
