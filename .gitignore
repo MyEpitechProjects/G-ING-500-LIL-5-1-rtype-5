@@ -6,3 +6,4 @@ client_test.cpp
 build
 /.venv/
 /site/
+test/

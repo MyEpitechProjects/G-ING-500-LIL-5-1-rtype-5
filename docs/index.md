@@ -7,6 +7,8 @@ The project includes a server that manages the game, game logic for players, ene
 ## Getting started
 
 - [Build and run the server](build.md)
+- [Understand the game engine](engine.md)
+- [Read the game rules and gameplay loop](game.md)
 - [Integrate the networking module](network.md)
 - [Read the binary protocol specification](protocol.md)
 

@@ -66,32 +66,32 @@ namespace rtype {
 
     class ControlSystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, int playerSpeed) const;
+            void operator()(Registry &registry, int playerSpeed) const;
     };
 
     class ShotSystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, double shotInterval, const std::function<void(int, int, bool)> &spawnProjectile) const;
+            void operator()(Registry &registry, double shotInterval, const std::function<void(int, int, bool)> &spawnProjectile) const;
     };
 
     class EnemySystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, unsigned int &tick, int enemyInterval, int height, const std::function<void(int)> &spawnEnemy, const std::function<void(int, int, bool)> &spawnProjectile) const;
+            void operator()(Registry &registry, unsigned int &tick, int enemyInterval, int height, const std::function<void(int)> &spawnEnemy, const std::function<void(int, int, bool)> &spawnProjectile) const;
     };
 
     class BoundsSystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, int width, int height, const std::function<void(Entity)> &destroyEntity) const;
+            void operator()(Registry &registry, int width, int height, const std::function<void(Entity)> &destroyEntity) const;
     };
 
     class ProjectileCollisionSystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, unsigned int &score, const std::function<void(Entity)> &destroyEntity) const;
+            void operator()(Registry &registry, unsigned int &score, const std::function<void(Entity)> &destroyEntity) const;
     };
 
     class EnemyCollisionSystem {
         public:
-            void operator()(Registry &registry, const std::vector<Entity> &entities, const std::function<void(Entity)> &destroyEntity) const;
+            void operator()(Registry &registry, const std::function<void(Entity)> &destroyEntity) const;
     };
 }
 
