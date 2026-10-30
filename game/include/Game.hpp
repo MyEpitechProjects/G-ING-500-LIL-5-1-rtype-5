@@ -1,72 +1,60 @@
-#ifndef GAME_HPP
-    #define GAME_HPP
+/*
+** EPITECH PROJECT, 2026
+** Game
+** File description:
+** Game def
+*/
 
-#include <algorithm>
-#include <chrono>
-#include <cstddef>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <thread>
-#include <utility>
-#include <vector>
+#ifndef GAME
+    #define GAME
 
-#include "Components.hpp"
-#include "Entity.hpp"
-#include "Registry.hpp"
-#include "GameMessage.hpp"
-#include "GameSystems.hpp"
-#include "WakeSignal.hpp"
+    #include "Engine.hpp"
+    #include "GameInput.hpp"
+    #include "GameOutput.hpp"
+    #include <chrono>
+    #include <optional>
+    #include <vector>
 
 namespace rtype {
-    class Game {
-        private:
-            int width = 800;
-            int height = 600;
-            int playerSpeed = 5;
-            double shotInterval = 0.3;
-            int enemyInterval = 60;
+class Game {
+    private:
+        int _width;
+        int _height;
+        int _playerSpeed;
+        double _shotInterval;
+        int _enemyInterval;
 
-            bool _running = false;
-            Registry _registry;
-            std::size_t _nextId = 0;
-            std::vector<Entity> _entities;
-            unsigned int _tick = 0;
-            unsigned int _score = 0;
-            std::chrono::steady_clock::time_point _lastUpdate = std::chrono::steady_clock::now();
+        Engine _engine;
+        unsigned int _tick;
+        unsigned int _score;
+        std::chrono::steady_clock::time_point _lastUpdate;
 
-            std::vector<rtype::GameInput> _in;
-            std::vector<rtype::GameOutput> _out;
-            std::mutex _inMutex;
-            std::mutex _outMutex;
-            std::shared_ptr<WakeSignal> _wakeSignal;
+        std::vector<rtype::GameInput> _in;
+        std::vector<rtype::GameOutput> _out;
 
-            Entity createEntity();
-            void destroyEntity(Entity entity);
-            Entity spawnEnemy(int y);
-            Entity spawnProjectile(int x, int y, bool fromPlayer);
-            std::optional<Entity> getEntityFromPlayerId(int playerId) const;
-            std::size_t getPlayerCount() const;
-            Entity addPlayer(int id);
-            void removePlayer(Entity player);
+        void destroyEntity(Entity entity);
+        Entity spawnEnemy(int y);
+        Entity spawnProjectile(int x, int y, bool fromPlayer);
+        std::optional<Entity> getEntityFromPlayerId(int playerId) const;
+        std::size_t getPlayerCount() const;
+        Entity addPlayer(int id);
+        void removePlayer(Entity player);
 
-        public:
-            Game(std::shared_ptr<WakeSignal> &wakeSignal);
-            ~Game() = default;
+    public:
+        Game();
+        ~Game() = default;
 
-            Registry &getRegistry();
-            const std::vector<Entity> &getEntities() const;
-            unsigned int getScore() const;
-            unsigned int getTick() const;
+        Registry &getRegistry() { return _engine.getRegistry(); }
+        const std::vector<Entity> &getEntities() const { return _engine.getEntities(); }
+        unsigned int getScore() const { return _score; }
+        unsigned int getTick() const { return _tick; }
 
-            std::vector<rtype::GameOutput> takeOutputQueue();
+        std::vector<rtype::GameOutput> takeOutputQueue();
 
-            void addInputQueue(const std::vector<rtype::GameInput> &input);
-            void init();
-            void stop();
-            void update();
-            void run();
-    };
+        void addInputQueue(const std::vector<rtype::GameInput> &input);
+        void init();
+        void update();
+};
 }
 
 #endif

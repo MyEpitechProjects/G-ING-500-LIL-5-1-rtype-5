@@ -1,168 +1,144 @@
+/*
+** EPITECH PROJECT, 2026
+** Game
+** File description:
+** Game
+*/
+
 #include "Game.hpp"
+#include "Controllable.hpp"
+#include "CoolDown.hpp"
+#include "Enemy.hpp"
+#include "GameSystems.hpp"
+#include "Health.hpp"
+#include "Player.hpp"
+#include "Projectile.hpp"
 
-namespace rtype {
-    Entity Game::createEntity() {
-        Entity entity(_nextId++);
-        _entities.push_back(entity);
-        return entity;
-    }
+#include <cstdint>
 
-    void Game::destroyEntity(Entity entity) {
-        std::vector<Entity>::iterator it = std::find_if(_entities.begin(), _entities.end(),
-            [entity](const Entity &current) {
-                return current.id() == entity.id();
-            }
-        );
-        if (it == _entities.end())
-            return;
-        rtype::GameOutput output{};
-        output.type = rtype::GameOutputType::EntityDestroyed;
-        output.entityId = entity.id();
-        output.tick = _tick;
-        output.score = _score;
-        {
-            std::lock_guard<std::mutex> lock(_outMutex);
-            _out.push_back(output);
-        }
-        _registry.erase_entity(entity);
-        _entities.erase(it);
-    }
+rtype::Game::Game() : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()) {
+    init();
+}
 
-    Entity Game::spawnEnemy(int y) {
-        Entity enemy = createEntity();
-        EnemySpawnSystem{}(_registry, enemy, width - 20, y);
-        return enemy;
-    }
+void rtype::Game::destroyEntity(Entity entity) {
+    rtype::GameOutput output{};
 
-    Entity Game::spawnProjectile(int x, int y, bool fromPlayer) {
-        Entity projectile = createEntity();
-        ProjectileSpawnSystem{}(_registry, projectile, x, y, fromPlayer);
-        return projectile;
-    }
+    if (!_engine.isAlive(entity))
+        return;
+    output.type = rtype::GameOutputType::EntityDestroyed;
+    output.entityId = entity.getId();
+    output.score = _score;
+    _out.push_back(output);
+    _engine.killEntity(entity);
+}
 
-    std::optional<Entity> Game::getEntityFromPlayerId(int playerId) const {
-        const SparseArray<Player> &players = _registry.get_components<Player>();
-        for (const Entity &entity : _entities) {
-            if (entity.id() < players.size() && players[entity.id()]
-                && players[entity.id()]->id == playerId)
-                return entity;
-        }
-        return std::nullopt;
-    }
+Entity rtype::Game::spawnEnemy(int y) {
+    Entity enemy = _engine.spawnEntity();
 
-    std::size_t Game::getPlayerCount() const {
-        const SparseArray<Player> &players = _registry.get_components<Player>();
-        std::size_t count = 0;
-        for (const Entity &entity : _entities) {
-            if (entity.id() < players.size() && players[entity.id()])
-                ++count;
-        }
-        return count;
-    }
+    rtype::EnemySpawnSystem{}(_engine.getRegistry(), enemy, _width - 20, y);
+    return enemy;
+}
 
-    Entity Game::addPlayer(int id) {
-        Entity player = createEntity();
-        PlayerSpawnSystem{}(_registry, player, id);
-        rtype::GameOutput output{};
-        output.type = rtype::GameOutputType::PlayerCreated;
-        output.clientId = static_cast<std::uint32_t>(id);
-        output.entityId = player.id();
-        output.tick = _tick;
-        output.score = _score;
-        std::lock_guard<std::mutex> lock(_outMutex);
-        _out.push_back(output);
-        return player;
-    }
+Entity rtype::Game::spawnProjectile(int x, int y, bool fromPlayer) {
+    Entity projectile = _engine.spawnEntity();
 
-    void Game::removePlayer(Entity player) {
-        PlayerRemovalSystem{}(_registry, player,
-            [this](Entity entity) { destroyEntity(entity); }
-        );
-    }
+    rtype::ProjectileSpawnSystem{}(_engine.getRegistry(), projectile, x, y, fromPlayer);
+    return projectile;
+}
 
-    Game::Game(std::shared_ptr<WakeSignal> &wakeSignal) : _wakeSignal(wakeSignal) { init(); }
+std::optional<Entity> rtype::Game::getEntityFromPlayerId(int playerId) const {
+    const SparseArray<Player> &players = _engine.getComponents<Player>();
 
-    Registry &Game::getRegistry() { return _registry; }
+    for (const Entity &entity : _engine.getEntities())
+        if (_engine.hasComponent<Player>(entity) && players[entity.getId()]->id == playerId)
+            return entity;
+    return std::nullopt;
+}
 
-    const std::vector<Entity> &Game::getEntities() const { return _entities; }
+std::size_t rtype::Game::getPlayerCount() const {
+    std::size_t count = 0;
 
-    unsigned int Game::getScore() const { return _score; }
+    for (const Entity &entity : _engine.getEntities())
+        if (_engine.hasComponent<Player>(entity))
+            ++count;
+    return count;
+}
 
-    unsigned int Game::getTick() const { return _tick; }
+Entity rtype::Game::addPlayer(int id) {
+    Entity player = _engine.spawnEntity();
+    rtype::GameOutput output{};
 
-    std::vector<rtype::GameOutput> Game::takeOutputQueue() {
-        std::lock_guard<std::mutex> lock(_outMutex);
-        std::vector<rtype::GameOutput> output;
-        output.swap(_out);
-        return output;
-    }
+    rtype::PlayerSpawnSystem{}(_engine.getRegistry(), player, id);
+    output.type = rtype::GameOutputType::PlayerCreated;
+    output.clientId = static_cast<std::uint32_t>(id);
+    output.entityId = player.getId();
+    output.score = _score;
+    _out.push_back(output);
+    return player;
+}
 
-    void Game::addInputQueue(const std::vector<rtype::GameInput> &input) {
-        std::lock_guard<std::mutex> lock(_inMutex);
-        _in.insert(_in.end(), input.begin(), input.end());
-    }
+void rtype::Game::removePlayer(Entity player) {
+    rtype::PlayerRemovalSystem{}(_engine.getRegistry(), player,
+        [this](Entity entity) { destroyEntity(entity); }
+    );
+}
 
-    void Game::init() {
-        _registry.register_component<Position>();
-        _registry.register_component<Velocity>();
-        _registry.register_component<Health>();
-        _registry.register_component<Controllable>();
-        _registry.register_component<Player>();
-        _registry.register_component<Enemy>();
-        _registry.register_component<Projectile>();
-        _registry.register_component<CoolDown>();
-        _running = true;
-    }
+std::vector<rtype::GameOutput> rtype::Game::takeOutputQueue() {
+    std::vector<rtype::GameOutput> output;
 
-    void Game::stop() { _running = false; }
+    output.swap(_out);
+    return output;
+}
 
-    void Game::update() {
-        _tick++;
-        InputQueueSystem{}(_in, _inMutex, _registry,
-            [this](int playerId) { return getEntityFromPlayerId(playerId); },
-            [this](int playerId) { addPlayer(playerId); },
-            [this](Entity player) { removePlayer(player); }
-        );
-        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        const double elapsedSeconds = std::chrono::duration<double>(now - _lastUpdate).count();
-        _lastUpdate = now;
+void rtype::Game::addInputQueue(const std::vector<rtype::GameInput> &input) {
+    _in.insert(_in.end(), input.begin(), input.end());
+}
 
-        CooldownSystem{}(_registry, elapsedSeconds);
-        ControlSystem{}(_registry, playerSpeed);
-        ShotSystem{}(_registry, shotInterval,
-            [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
-        );
-        EnemySystem{}(_registry, _tick, enemyInterval, height,
-            [this](int y) { spawnEnemy(y); },
-            [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
-        );
-        PositionSystem{}(_registry);
-        BoundsSystem{}(_registry, width, height,
-            [this](Entity entity) { destroyEntity(entity); }
-        );
-        ProjectileCollisionSystem{}(_registry, _score,
-            [this](Entity entity) { destroyEntity(entity); }
-        );
-        EnemyCollisionSystem{}(_registry,
-            [this](Entity entity) { destroyEntity(entity); }
-        );
-        SnapshotSystem{}(_registry, _entities, _tick, _score, _out, _outMutex);
-        _wakeSignal->notify();
-    }
+void rtype::Game::init() {
+    _engine.registerComponent<Position>();
+    _engine.registerComponent<Velocity>();
+    _engine.registerComponent<Hitbox>();
+    _engine.registerComponent<Health>();
+    _engine.registerComponent<Controllable>();
+    _engine.registerComponent<Player>();
+    _engine.registerComponent<Enemy>();
+    _engine.registerComponent<Projectile>();
+    _engine.registerComponent<CoolDown>();
+}
 
-    void Game::run() {
-        const std::chrono::nanoseconds tick(1000000000 / 60);
-        std::chrono::steady_clock::time_point nextTick = std::chrono::steady_clock::now();
+void rtype::Game::update() {
+    std::chrono::steady_clock::time_point now;
+    double elapsedSeconds = 0;
 
-        while (_running) {
-            update();
-            nextTick += tick;
-            const std::chrono::steady_clock::time_point now =
-                std::chrono::steady_clock::now();
-            if (nextTick > now)
-                std::this_thread::sleep_until(nextTick);
-            else
-                nextTick = now;
-        }
-    }
+    _tick++;
+    rtype::InputQueueSystem{}(_in, _engine.getRegistry(),
+        [this](int playerId) { return getEntityFromPlayerId(playerId); },
+        [this](int playerId) { addPlayer(playerId); },
+        [this](Entity player) { removePlayer(player); }
+    );
+    now = std::chrono::steady_clock::now();
+    elapsedSeconds = std::chrono::duration<double>(now - _lastUpdate).count();
+    _lastUpdate = now;
+
+    rtype::CooldownSystem{}(_engine.getRegistry(), elapsedSeconds);
+    rtype::ControlSystem{}(_engine.getRegistry(), _playerSpeed);
+    rtype::ShotSystem{}(_engine.getRegistry(), _shotInterval,
+        [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
+    );
+    rtype::EnemySystem{}(_engine.getRegistry(), _tick, _enemyInterval, _height,
+        [this](int y) { spawnEnemy(y); },
+        [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
+    );
+    PositionSystem{}(_engine.getRegistry());
+    rtype::BoundsSystem{}(_engine.getRegistry(), _width, _height);
+    OutOfBoundsSystem{}(_engine.getRegistry(), -20, -20, _width + 20, _height + 20,
+        [this](Entity entity) { destroyEntity(entity); }
+    );
+    rtype::ProjectileCollisionSystem{}(_engine.getRegistry(), _score,
+        [this](Entity entity) { destroyEntity(entity); }
+    );
+    rtype::EnemyCollisionSystem{}(_engine.getRegistry(),
+        [this](Entity entity) { destroyEntity(entity); }
+    );
+    rtype::SnapshotSystem{}(_engine.getRegistry(), _engine.getEntities(), _tick, _score, _out);
 }
