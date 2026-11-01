@@ -32,6 +32,9 @@ namespace Net {
 
             static bool validEntity(const Net::EntityState& entity);
 
+            static std::optional<std::size_t> eventPayloadSize(Net::EventType type);
+            static std::shared_ptr<const Net::IEvent> deserializeEvent(Net::EventType type, const std::uint8_t* data);
+
             static Packet deserialize(const std::uint8_t* data, std::size_t size);
             static Packet deserialize(const std::vector<std::uint8_t>& data)
             {

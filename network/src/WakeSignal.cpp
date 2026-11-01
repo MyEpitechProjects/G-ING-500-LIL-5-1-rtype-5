@@ -24,3 +24,16 @@ bool WakeSignal::waitFor(std::chrono::milliseconds timeout) {
 
     return notified;
 }
+
+bool WakeSignal::waitUntil(std::chrono::steady_clock::time_point deadline) {
+    std::unique_lock<std::mutex> lock(_mutex);
+
+    bool notified = _condition.wait_until(
+        lock, deadline, [this] { return _pending; }
+    );
+
+    if (notified)
+        _pending = false;
+
+    return notified;
+}

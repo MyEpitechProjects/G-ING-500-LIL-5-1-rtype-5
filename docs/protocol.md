@@ -35,7 +35,7 @@ uniqueness or application-level validity. It does not increment the sequence aut
 | `2` | `SNAPSHOT` | Entity states, server → client | `14 + 16 × N` bytes |
 | `3` | `HELLO` | Connection request, client → server | 8 bytes |
 | `4` | `WELCOME` | Player entity assignment, server → client | 12 bytes |
-| `5` | `EVENT` | Game events, server → client; acknowledgements, client → server | 17 bytes |
+| `7` | `EVENT` | Game events, server → client; acknowledgements, client → server | 13 bytes + payload |
 
 These directions describe the purpose of the messages; the codec does not enforce
 their direction or handle connections or sessions itself.
@@ -98,32 +98,40 @@ They can be combined. Other bits in `flags` are currently not rejected by the co
 Coordinates must be finite: NaN and infinities are rejected.
 The codec applies no position limits or application-level constraints to `health` or `id`.
 
-### EVENT — type 5 (`GameEventPacket`)
+### EVENT — type 7 (`EventPacket`)
 
-Every event, including an acknowledgement, uses the same **17-byte** format:
-the common 8-byte header followed by a 9-byte payload.
+Every event starts with the common 8-byte header, followed by a 5-byte event
+base, then a payload whose layout depends on `eventType`.
 
 | Offset | Size | Field | Description |
 | --- | --- | --- | --- |
 | 8 | 1 | `eventType` | Event subtype from the table below |
-| 9 | 4 | `entityId` | Entity concerned by the event; ignored by the server for an ACK |
-| 13 | 4 | `eventId` | Identifier used to acknowledge the event |
+| 9 | 4 | `eventId` | Identifier used to acknowledge the event |
+| 13 | n | `eventData` | Payload, its size `n` is fixed by `eventType` |
 
-| Value | Name | Purpose and current use |
-| --- | --- | --- |
-| `1` | `NEW_CLIENT` | Broadcast when the game creates a player; `entityId` identifies that player entity |
-| `2` | `DESTROY` | Broadcast when the game destroys an entity; `entityId` identifies the destroyed entity |
-| `3` | `ACK` | Client acknowledgement of the event identified by `eventId` |
-| `4` | `DISCONNECTED` | Defined subtype|
+| Value | Name | Payload (`eventData`) | Purpose |
+| --- | --- | --- | --- |
+| `1` | `NEW_CLIENT` | `EntityEvent` (4 bytes: `entityId`) | Broadcast when the game creates a player |
+| `2` | `DESTROY` | `EntityEvent` (4 bytes: `entityId`) | Broadcast when the game destroys an entity |
+| `3` | `ACK` | `EmptyEvent` (0 bytes) | Client acknowledgement of the event identified by `eventId` |
+| `4` | `DISCONNECTED` | `EntityEvent` (4 bytes: `entityId`) | Broadcast when a session times out |
 
-The default subtype is `ACK`, and both identifiers default to `0`.
-`eventId` is independent of the common header's `sequence` field.
+A packet whose size does not match `13 + n` for its `eventType`, or whose
+`eventType` is unknown, is rejected. Serializing an `EventPacket` whose payload
+does not match its `eventType` throws `std::invalid_argument`.
+
+The default subtype is `ACK` with an `EmptyEvent` payload, and `eventId`
+defaults to `0`. `eventId` is independent of the common header's `sequence` field.
+
+To add an event: add the `EventType` value, a payload struct implementing
+`Net::IEvent`, and its case in `PacketCodec::eventPayloadSize` and
+`PacketCodec::deserializeEvent`.
 
 #### Broadcast, acknowledgements and retries
 
 The server assigns an event identifier and records the event in every current
 session's pending-event map. Each recipient receives its own packet with the same
-`eventId` and `entityId`, but with `header.sessionId` set to that recipient's
+`eventId` and `eventData`, but with `header.sessionId` set to that recipient's
 session identifier. This field does not identify the player announced by
 `NEW_CLIENT`.
 
@@ -136,7 +144,7 @@ no retry limit or expiry while the session remains active.
 To acknowledge an event, a client sends an `EVENT` with subtype `ACK`, the same
 `eventId`, and its own `header.sessionId`. The server removes the pending event
 only from the sender endpoint's session, provided the session identifier matches.
-The ACK's `entityId` is ignored and may be zero. An unknown or already acknowledged
+An unknown or already acknowledged
 event identifier has no effect on the pending-event map. ACKs are not themselves
 acknowledged. Removing a session also removes its pending events.
 

@@ -58,8 +58,7 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
             if (size != HEADER_WIRE_SIZE + 8)
                 return nullptr;
             std::unique_ptr<WelcomePacket> packet = std::make_unique<WelcomePacket>(header);
-            packet->playerEntityId = readU32(data + HEADER_WIRE_SIZE);
-            packet->entityId = readU32(data + HEADER_WIRE_SIZE + sizeof(packet->playerEntityId));
+            packet->clientId = readU32(data + HEADER_WIRE_SIZE);
             return packet;
         } case PacketType::INPUT: {
             if (size != HEADER_WIRE_SIZE + 2)
@@ -96,17 +95,55 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
                 packet->entities.push_back(entity);
             }
             return packet;
+        } case PacketType::CREATE_INSTANCE: {
+            if (size != HEADER_WIRE_SIZE)
+                return nullptr;
+            return std::make_unique<CreateInstancePacket>(header);
+        } case PacketType::INSTANCE: {
+            if (size != INSTANCE_WIRE_SIZE)
+                return nullptr;
+            std::unique_ptr<InstancePacket> packet = std::make_unique<InstancePacket>(header);
+            packet->instanceId = readU32(data + HEADER_WIRE_SIZE);
+            return packet;
         } case PacketType::EVENT: {
-            if (size != HEADER_WIRE_SIZE + 9)
+            if (size < EVENT_BASE_WIRE_SIZE)
                 return nullptr;
-            std::unique_ptr<GameEventPacket> packet = std::make_unique<GameEventPacket>(header);
-            packet->eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
-            if (packet->eventType != Net::EventType::ACK && packet->eventType != Net::EventType::DESTROY && packet->eventType != Net::EventType::DISCONNECTED && packet->eventType != Net::EventType::NEW_CLIENT)
+            const EventType eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
+            const std::optional<std::size_t> payloadSize = eventPayloadSize(eventType);
+            if (!payloadSize || size != EVENT_BASE_WIRE_SIZE + payloadSize.value())
                 return nullptr;
-            packet->entityId = readU32(data + HEADER_WIRE_SIZE + 1);
-            packet->eventId = readU32(data + HEADER_WIRE_SIZE + 5);
+            std::unique_ptr<EventPacket> packet = std::make_unique<EventPacket>(header);
+            packet->eventType = eventType;
+            packet->eventId = readU32(data + HEADER_WIRE_SIZE + 1);
+            packet->eventData = deserializeEvent(eventType, data + EVENT_BASE_WIRE_SIZE);
             return packet;
         }
+        default:
+            return nullptr;
+    }
+}
+
+std::optional<std::size_t> Net::PacketCodec::eventPayloadSize(EventType type) {
+    switch (type) {
+        case EventType::ACK:
+            return 0;
+        case EventType::NEW_CLIENT:
+        case EventType::DESTROY:
+        case EventType::DISCONNECTED:
+            return ENTITY_EVENT_WIRE_SIZE;
+        default:
+            return std::nullopt;
+    }
+}
+
+std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data) {
+    switch (type) {
+        case EventType::ACK:
+            return std::make_shared<EmptyEvent>();
+        case EventType::NEW_CLIENT:
+        case EventType::DESTROY:
+        case EventType::DISCONNECTED:
+            return std::make_shared<EntityEvent>(readU32(data));
         default:
             return nullptr;
     }
