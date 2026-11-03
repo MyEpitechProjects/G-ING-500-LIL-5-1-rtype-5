@@ -25,8 +25,8 @@ void rtype::ControlSystem::operator()(Registry &registry, int playerSpeed) const
         const Controllable &input = std::get<1>(*it);
 
         velocities.insertAt(id, Velocity{
-            (static_cast<int>(input.right) - static_cast<int>(input.left)) * playerSpeed,
-            (static_cast<int>(input.down) - static_cast<int>(input.up)) * playerSpeed
+            static_cast<float>((static_cast<int>(input.right) - static_cast<int>(input.left)) * playerSpeed),
+            static_cast<float>((static_cast<int>(input.down) - static_cast<int>(input.up)) * playerSpeed)
         });
     }
 }

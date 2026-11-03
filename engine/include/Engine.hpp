@@ -11,17 +11,20 @@
     #include "EngineSystems.hpp"
     #include "Entity.hpp"
     #include "Hitbox.hpp"
+    #include "IModule.hpp"
     #include "Position.hpp"
     #include "Registry.hpp"
     #include "SparseArray.hpp"
     #include "Velocity.hpp"
     #include "Zipper.hpp"
+    #include <memory>
     #include <utility>
     #include <vector>
 
 class Engine {
     private:
         Registry _registry;
+        std::vector<std::unique_ptr<IModule>> _modules;
 
     public:
         Engine() = default;
@@ -54,6 +57,16 @@ class Engine {
         void killEntity(Entity const &entity) { _registry.killEntity(entity); }
         bool isAlive(Entity const &entity) const { return _registry.isAlive(entity); }
         const std::vector<Entity> &getEntities() const { return _registry.getEntities(); }
+
+        void addModule(std::unique_ptr<IModule> module) {
+            module->registerComponents(_registry);
+            _modules.push_back(std::move(module));
+        }
+
+        void update(double elapsedSeconds) {
+            for (const std::unique_ptr<IModule> &module : _modules)
+                module->update(_registry, elapsedSeconds);
+        }
 
         template <class System, class... Args>
         void applySystem(System &&system, Args &&...args) {

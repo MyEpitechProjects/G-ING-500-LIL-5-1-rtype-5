@@ -39,6 +39,7 @@ class Game {
         std::size_t getPlayerCount() const;
         Entity addPlayer(int id);
         void removePlayer(Entity player);
+        void applyShot(Entity shot, Entity target);
 
     public:
         Game();

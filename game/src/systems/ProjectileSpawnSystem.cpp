@@ -12,8 +12,8 @@
 #include "Velocity.hpp"
 
 void rtype::ProjectileSpawnSystem::operator()(Registry &registry, Entity projectile, int x, int y, bool fromPlayer) const {
-    registry.addComponent(projectile, Position{x, y});
-    registry.addComponent(projectile, Velocity{fromPlayer ? 13 : -5, 0});
+    registry.addComponent(projectile, Position{static_cast<float>(x), static_cast<float>(y)});
+    registry.addComponent(projectile, Velocity{fromPlayer ? 13.0f : -5.0f, 0.0f});
     registry.addComponent(projectile, ENTITY_HITBOX);
     registry.addComponent(projectile, Projectile{fromPlayer});
 }

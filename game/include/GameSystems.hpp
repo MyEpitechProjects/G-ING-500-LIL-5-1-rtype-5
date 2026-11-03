@@ -38,11 +38,6 @@ class CooldownSystem {
         void operator()(Registry &registry, double elapsedSeconds) const;
 };
 
-class EnemyCollisionSystem {
-    public:
-        void operator()(Registry &registry, const std::function<void(Entity)> &destroyEntity) const;
-};
-
 class EnemySpawnSystem {
     public:
         void operator()(Registry &registry, Entity enemy, int x, int y) const;
@@ -55,7 +50,7 @@ class EnemySystem {
 
 class InputQueueSystem {
     public:
-        void operator()(std::vector<rtype::GameInput> &queuedInput, Registry &registry, const std::function<std::optional<Entity>(int)> &findPlayer, const std::function<void(int)> &addPlayer, const std::function<void(Entity)> &removePlayer) const;
+        void operator()(Registry &registry, std::vector<rtype::GameInput> &queuedInput, const std::function<std::optional<Entity>(int)> &findPlayer, const std::function<void(int)> &addPlayer, const std::function<void(Entity)> &removePlayer) const;
 };
 
 class PlayerRemovalSystem {
@@ -66,11 +61,6 @@ class PlayerRemovalSystem {
 class PlayerSpawnSystem {
     public:
         void operator()(Registry &registry, Entity player, int playerId) const;
-};
-
-class ProjectileCollisionSystem {
-    public:
-        void operator()(Registry &registry, unsigned int &score, const std::function<void(Entity)> &destroyEntity) const;
 };
 
 class ProjectileSpawnSystem {

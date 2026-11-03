@@ -20,7 +20,7 @@ void rtype::BoundsSystem::operator()(Registry &registry, int width, int height) 
     for (std::tuple<Position &, const Player &> components : Containers::Zipper(positions, players)) {
         Position &position = std::get<0>(components);
 
-        position.x = std::clamp(position.x, 0, width - 1);
-        position.y = std::clamp(position.y, 0, height - 1);
+        position.x = std::clamp(position.x, 0.0f, static_cast<float>(width - 1));
+        position.y = std::clamp(position.y, 0.0f, static_cast<float>(height - 1));
     }
 }

@@ -13,7 +13,7 @@
 #include "Velocity.hpp"
 
 void rtype::EnemySpawnSystem::operator()(Registry &registry, Entity enemy, int x, int y) const {
-    registry.addComponent(enemy, Position{x, y});
+    registry.addComponent(enemy, Position{static_cast<float>(x), static_cast<float>(y)});
     registry.addComponent(enemy, Velocity{-2, 0});
     registry.addComponent(enemy, ENTITY_HITBOX);
     registry.addComponent(enemy, Health{1});

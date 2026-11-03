@@ -33,6 +33,8 @@ class Registry {
 
         template <class Component>
         SparseArray<Component> &registerComponent() {
+            if (_componentArrays.find(std::type_index(typeid(Component))) != _componentArrays.end())
+                return getComponents<Component>();
             _componentArrays.emplace(std::type_index(typeid(Component)), SparseArray<Component>{});
             _erasers.push_back([](Registry &registry, Entity const &entity) {
                 registry.getComponents<Component>().erase(entity.getId());
