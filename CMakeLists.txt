@@ -28,16 +28,42 @@ target_link_libraries(rtype_network PUBLIC
     Threads::Threads
 )
 
+add_library(rtype_engine STATIC
+    engine/src/systems/OutOfBoundsSystem.cpp
+    engine/src/systems/PositionSystem.cpp
+)
+
+target_include_directories(rtype_engine PUBLIC
+    engine/include
+    engine/include/components
+)
+
 add_library(rtype_game STATIC
     game/src/Game.cpp
-    game/src/GameSystems.cpp
+    game/src/systems/BoundsSystem.cpp
+    game/src/systems/ControlAssignmentSystem.cpp
+    game/src/systems/ControlSystem.cpp
+    game/src/systems/CooldownSystem.cpp
+    game/src/systems/EnemyCollisionSystem.cpp
+    game/src/systems/EnemySpawnSystem.cpp
+    game/src/systems/EnemySystem.cpp
+    game/src/systems/InputQueueSystem.cpp
+    game/src/systems/PlayerRemovalSystem.cpp
+    game/src/systems/PlayerSpawnSystem.cpp
+    game/src/systems/ProjectileCollisionSystem.cpp
+    game/src/systems/ProjectileSpawnSystem.cpp
+    game/src/systems/ShotSystem.cpp
+    game/src/systems/SnapshotSystem.cpp
 )
 
 target_include_directories(rtype_game PUBLIC
     game/include
+    game/include/components
+    game/include/messages
 )
 
 target_link_libraries(rtype_game PUBLIC
+    rtype_engine
     rtype_network
 )
 
@@ -107,7 +133,7 @@ target_link_libraries(rtype_client PRIVATE
 add_dependencies(rtype_client rtype_client_assets)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    foreach(target rtype_network rtype_game rtype_server)
+    foreach(target rtype_network rtype_engine rtype_game rtype_server)
         target_compile_options(${target} PRIVATE
             -Wall -Wextra -Werror
         )
