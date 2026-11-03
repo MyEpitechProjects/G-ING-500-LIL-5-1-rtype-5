@@ -22,9 +22,9 @@ void rtype::Server::run() {
         }
     });
 
-    while (_running) {
-        auto nextTick = std::chrono::steady_clock::now() + _tickPeriod;
+    auto nextTick = std::chrono::steady_clock::now();
 
+    while (_running) {
         removeInactiveClients();
 
         // packet received :
@@ -33,44 +33,21 @@ void rtype::Server::run() {
             handlePacket(packet.value());
         }
 
-        /*std::vector<GameOutput> outputs = _game.takeOutputQueue();
-        for (GameOutput output : outputs) {
-            if (output.type == GameOutputType::Snapshot) {
-                Net::SnapshotPacket snapPacket = convertGameOutput(output);
-                broadcast(std::make_shared<Net::SnapshotPacket>(snapPacket));
-            } else if (output.type == GameOutputType::PlayerCreated) {
-                auto sessionIt = std::find_if(
-                    _sessions.begin(),
-                    _sessions.end(),
-                    [&output](const auto& entry) {
-                        return entry.second.client_id == output.clientId;
-                    }
-                );
-                if (sessionIt != _sessions.end()) {
-                    Net::WelcomePacket welcome;
-                    welcome.header.sessionId = sessionIt->second.client_id;
-                    welcome.playerEntityId = output.clientId;
-                    welcome.entityId = output.entityId;
-                    _netHandler.send(
-                        std::make_unique<Net::WelcomePacket>(welcome),
-                        sessionIt->first
-                    );
-                }
-            }
-            if (output.type == GameOutputType::EntityDestroyed || output.type == GameOutputType::PlayerCreated) {
-                Net::EventPacket outpacket;
-                outpacket.header.sessionId = output.clientId;
-                outpacket.eventType = output.type == GameOutputType::EntityDestroyed ? Net::EventType::DESTROY : Net::EventType::NEW_CLIENT;
-                outpacket.eventId = _idEventCounter;
-                _idEventCounter++;
-                outpacket.entityId = output.entityId;
-                broadcastEvent(outpacket);
-            }
+        // update instance :
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= nextTick) {
+            updateInstances();
+            nextTick += _tickPeriod;
+            if (nextTick <= now)
+                nextTick = now + _tickPeriod;
         }
 
-        handlePendingEvents();*/
+        dispatchOutputs();
+        handlePendingEvents();
 
         // wait next tick, define by tick rate :
+    
         _wakeSignal->waitUntil(nextTick);
     }
 }
@@ -82,12 +59,8 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
         handlePacket(*packet, incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::InstancePacket*>(incomingPacket.packet.get())) {
         handlePacket(*packet, incomingPacket.sender);
-    } else if (dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
-        //Controllable inputs{(packet->buttons & Net::InputButton::UP) != 0, (packet->buttons & Net::InputButton::DOWN) != 0, (packet->buttons & Net::InputButton::RIGHT) != 0, (packet->buttons & Net::InputButton::LEFT) != 0, (packet->buttons & Net::InputButton::FIRE) != 0};
-        //if (_sessions.find(incomingPacket.sender) != _sessions.end() && _sessions.at(incomingPacket.sender).client_id == packet->header.sessionId) {
-        //    GameInput eventPacket{GameInputType::SetControls, packet->header.sessionId, inputs};
-        //    _game.addInputQueue(std::vector<GameInput>{eventPacket});
-        //}
+    } else if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
+        handlePacket(*packet, incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::EventPacket*>(incomingPacket.packet.get())) {
         if (packet->eventType == Net::EventType::ACK) {
             erasePendingEvent(incomingPacket.sender, packet->eventId, packet->header.sessionId);
@@ -106,31 +79,20 @@ void rtype::Server::handlePacket(Net::HelloPacket &, Net::udp::endpoint sender) 
 }
 
 void rtype::Server::handlePacket(Net::CreateInstancePacket &, Net::udp::endpoint sender) {
-    if (_sessions.find(sender) != _sessions.end()) {
-        std::uint32_t newInstanceId = createInstance();
-        Net::InstancePacket instancePacket;
-        instancePacket.instanceId = newInstanceId;
-        _sessions.at(sender).instance_id = instancePacket.instanceId;
-        _netHandler.send(std::make_unique<Net::InstancePacket>(instancePacket), sender);
+    auto sessionIt = _sessions.find(sender);
+    if (sessionIt == _sessions.end())
+        return;
 
-        _pool.addInQueue([this, newInstanceId](){
-            std::unordered_map<uint32_t, Instance>::node_type node = [this, newInstanceId]() {
-                std::lock_guard<std::mutex> lock(_instancesMutex);
-                return _instances.extract(newInstanceId);
-            }();
-
-            if (node.empty())
-                return;
-
-            [[maybe_unused]] Instance &instance = node.mapped();
-            // traitement de l'instance
-
-            {
-                std::lock_guard<std::mutex> lock(_instancesMutex);
-                _instances.insert(std::move(node));
-            }
-        });
+    Session &session = sessionIt->second;
+    Net::InstancePacket response;
+    response.header.sessionId = static_cast<std::uint32_t>(session.client_id);
+    response.instanceId = Net::NO_INSTANCE;
+    if (session.instance_id == Net::NO_INSTANCE) {
+        const std::uint32_t newInstanceId = createInstance();
+        if (joinInstance(session, newInstanceId))
+            response.instanceId = newInstanceId;
     }
+    _netHandler.send(std::make_unique<Net::InstancePacket>(response), sender);
 }
 
 void rtype::Server::handlePacket(Net::InstancePacket &packet, Net::udp::endpoint sender) {
@@ -142,6 +104,29 @@ void rtype::Server::handlePacket(Net::InstancePacket &packet, Net::udp::endpoint
     response.header.sessionId = packet.header.sessionId;
     response.instanceId = joinInstance(sessionIt->second, packet.instanceId) ? packet.instanceId : Net::NO_INSTANCE;
     _netHandler.send(std::make_unique<Net::InstancePacket>(response), sender);
+}
+
+void rtype::Server::handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender) {
+    auto sessionIt = _sessions.find(sender);
+    if (sessionIt == _sessions.end() || sessionIt->second.client_id != packet.header.sessionId)
+        return;
+
+    const Session &session = sessionIt->second;
+    if (session.instance_id == Net::NO_INSTANCE)
+        return;
+
+    const Controllable controls{
+        (packet.buttons & Net::InputButton::UP) != 0,
+        (packet.buttons & Net::InputButton::DOWN) != 0,
+        (packet.buttons & Net::InputButton::RIGHT) != 0,
+        (packet.buttons & Net::InputButton::LEFT) != 0,
+        (packet.buttons & Net::InputButton::FIRE) != 0
+    };
+
+    std::lock_guard<std::mutex> lock(_instancesMutex);
+    auto instanceIt = _instances.find(static_cast<std::uint32_t>(session.instance_id));
+    if (instanceIt != _instances.end())
+        instanceIt->second.setControls(session.client_id, controls);
 }
 
 bool rtype::Server::joinInstance(Session &session, std::uint32_t instanceId) {
@@ -185,14 +170,14 @@ std::uint32_t rtype::Server::createInstance() {
     return instanceId;
 }
 
-Net::SnapshotPacket rtype::Server::convertGameOutput(GameOutput snapshot) const {
+Net::SnapshotPacket rtype::Server::convertGameOutput(const GameOutput &snapshot) const {
     Net::PacketHeader header;
     header.type = Net::PacketType::SNAPSHOT;
 
     Net::SnapshotPacket packet(header);
     std::vector<Net::EntityState> entities;
 
-    for (GameEntityState state : snapshot.entities) {
+    for (const GameEntityState &state : snapshot.entities) {
         Net::EntityState statePacket;
         statePacket.x = state.position.x;
         statePacket.y = state.position.y;
@@ -224,9 +209,65 @@ void rtype::Server::broadcast(Net::PacketCodec::Packet packet) {
     }
 }
 
-void rtype::Server::broadcastEvent(Net::EventPacket outPacket) {
+void rtype::Server::updateInstances() {
+    std::lock_guard<std::mutex> lock(_instancesMutex);
+    for (auto &[instanceId, instance] : _instances) {
+        if (!instance.tryStartUpdate())
+            continue;
+        Instance *target = &instance;
+        _pool.addInQueue([target]() { target->update(); });
+    }
+}
+
+void rtype::Server::dispatchOutputs() {
+    std::vector<std::pair<std::uint32_t, GameOutput>> outputs;
+    {
+        std::lock_guard<std::mutex> lock(_instancesMutex);
+        for (auto &[instanceId, instance] : _instances) {
+            for (GameOutput &output : instance.takeOutputs())
+                outputs.emplace_back(instanceId, std::move(output));
+        }
+    }
+
+    for (const auto &[instanceId, output] : outputs)
+        dispatchOutput(instanceId, output);
+}
+
+void rtype::Server::dispatchOutput(std::uint32_t instanceId, const GameOutput &output) {
+    switch (output.type) {
+        case GameOutputType::Snapshot:
+            sendToInstance(instanceId, std::make_shared<Net::SnapshotPacket>(convertGameOutput(output)));
+            break;
+        case GameOutputType::PlayerCreated:
+            broadcastEvent(instanceId, createEntityEvent(Net::EventType::NEW_CLIENT, output.entityId));
+            break;
+        case GameOutputType::EntityDestroyed:
+            broadcastEvent(instanceId, createEntityEvent(Net::EventType::DESTROY, output.entityId));
+            break;
+    }
+}
+
+Net::EventPacket rtype::Server::createEntityEvent(Net::EventType type, std::size_t entityId) {
+    Net::EventPacket packet;
+    packet.eventType = type;
+    packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
+    packet.eventData = std::make_shared<Net::EntityEvent>(static_cast<std::uint32_t>(entityId));
+    _idEventCounter++;
+    return packet;
+}
+
+void rtype::Server::sendToInstance(std::uint32_t instanceId, Net::PacketCodec::Packet packet) {
+    for (const auto &[endpoint, session] : _sessions) {
+        if (session.instance_id == instanceId)
+            _netHandler.send(packet, endpoint);
+    }
+}
+
+void rtype::Server::broadcastEvent(std::uint32_t instanceId, Net::EventPacket outPacket) {
     const auto now = std::chrono::steady_clock::now();
     for (auto &[endpoint, session] : _sessions) {
+        if (session.instance_id != instanceId)
+            continue;
         outPacket.header.sessionId = session.client_id;
         session.pendingEvents.insert({outPacket.eventId, PendingEvent{std::make_shared<Net::EventPacket>(outPacket), now}});
     }
@@ -239,16 +280,13 @@ void rtype::Server::removeInactiveClients() {
     for (auto it = _sessions.begin(); it != _sessions.end();) {
         if (now - it->second.lastSeen >= timeout) {
             std::cout << "remove player : " << it->second.client_id << std::endl;
+            const std::uint32_t instanceId = static_cast<std::uint32_t>(it->second.instance_id);
+            const std::size_t clientId = it->second.client_id;
             leaveInstance(it->second);
 
-            Net::EventPacket disconnectPacket;
-            disconnectPacket.eventType = Net::EventType::DISCONNECTED;
-            disconnectPacket.eventId = static_cast<std::uint32_t>(_idEventCounter);
-            disconnectPacket.eventData = std::make_shared<Net::EntityEvent>(static_cast<std::uint32_t>(it->second.client_id));
-            _idEventCounter++;
-
             it = _sessions.erase(it);
-            broadcastEvent(disconnectPacket);
+            if (instanceId != Net::NO_INSTANCE)
+                broadcastEvent(instanceId, createEntityEvent(Net::EventType::DISCONNECTED, clientId));
         } else {
             ++it;
         }

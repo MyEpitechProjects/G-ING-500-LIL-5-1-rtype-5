@@ -14,3 +14,20 @@ void Instance::addPlayer(std::size_t clientId) {
 void Instance::removePlayer(std::size_t clientId) {
     _game.addInputQueue({rtype::GameInput{rtype::GameInputType::RemovePlayer, clientId}});
 }
+
+void Instance::setControls(std::size_t clientId, const Controllable &controls) {
+    _game.addInputQueue({rtype::GameInput{rtype::GameInputType::SetControls, clientId, controls}});
+}
+
+std::vector<rtype::GameOutput> Instance::takeOutputs() {
+    return _game.takeOutputQueue();
+}
+
+bool Instance::tryStartUpdate() {
+    return !_updating.exchange(true);
+}
+
+void Instance::update() {
+    _game.update();
+    _updating = false;
+}

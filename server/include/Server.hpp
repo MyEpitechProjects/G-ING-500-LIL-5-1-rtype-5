@@ -12,6 +12,8 @@
     #include <memory>
     #include <ranges>
     #include <tuple>
+    #include <utility>
+    #include <vector>
 
 namespace rtype {
     class Server {
@@ -39,6 +41,7 @@ namespace rtype {
             void handlePacket(Net::HelloPacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::CreateInstancePacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::InstancePacket &packet, Net::udp::endpoint sender);
+            void handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender);
 
             //----------------------------------------------------------------------------------//
 
@@ -47,14 +50,20 @@ namespace rtype {
             bool joinInstance(Session &session, std::uint32_t instanceId);
             void leaveInstance(Session &session);
 
-            Net::SnapshotPacket convertGameOutput(GameOutput snapshot) const;
+            Net::SnapshotPacket convertGameOutput(const GameOutput &snapshot) const;
 
             void broadcast(Net::PacketCodec::Packet packet);
+
+            void updateInstances();
+            void dispatchOutputs();
+            void dispatchOutput(std::uint32_t instanceId, const GameOutput &output);
+            void sendToInstance(std::uint32_t instanceId, Net::PacketCodec::Packet packet);
 
             void removeInactiveClients();
 
             void insertPendingEvent(std::size_t client_id, PendingEvent event, std::uint32_t event_id);
-            void broadcastEvent(Net::EventPacket outPacket);
+            Net::EventPacket createEntityEvent(Net::EventType type, std::size_t entityId);
+            void broadcastEvent(std::uint32_t instanceId, Net::EventPacket outPacket);
             void erasePendingEvent(asio::ip::udp::endpoint sender, std::uint32_t event_id, std::size_t sessionId);
 
             void handlePendingEvents();
