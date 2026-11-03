@@ -11,10 +11,13 @@
 #include "Enemy.hpp"
 #include "GameSystems.hpp"
 #include "Health.hpp"
+#include "PhysicsModule.hpp"
 #include "Player.hpp"
 #include "Projectile.hpp"
 
 #include <cstdint>
+#include <memory>
+#include <utility>
 
 rtype::Game::Game() : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()) {
     init();
@@ -94,10 +97,44 @@ void rtype::Game::addInputQueue(const std::vector<rtype::GameInput> &input) {
     _in.insert(_in.end(), input.begin(), input.end());
 }
 
+void rtype::Game::applyShot(Entity shot, Entity target) {
+    SparseArray<Health> &health = _engine.getComponents<Health>();
+
+    if (!_engine.hasComponent<Health>(target) || health[target.getId()]->value <= 0)
+        return;
+    destroyEntity(shot);
+    health[target.getId()]->value--;
+    if (health[target.getId()]->value > 0)
+        return;
+    if (_engine.hasComponent<Enemy>(target))
+        _score += 100;
+    destroyEntity(target);
+}
+
 void rtype::Game::init() {
-    _engine.registerComponent<Position>();
-    _engine.registerComponent<Velocity>();
-    _engine.registerComponent<Hitbox>();
+    std::unique_ptr<PhysicsModule> physics = std::make_unique<PhysicsModule>(-20, -20, _width + 20, _height + 20, 0.0f,
+        [this](Entity entity) { destroyEntity(entity); }
+    );
+
+    physics->onCollision<Projectile, Enemy>([this](Registry &registry, Entity shot, Entity enemy) {
+        if (registry.getComponents<Projectile>()[shot.getId()]->fromPlayer)
+            applyShot(shot, enemy);
+    });
+    physics->onCollision<Projectile, Player>([this](Registry &registry, Entity shot, Entity player) {
+        if (!registry.getComponents<Projectile>()[shot.getId()]->fromPlayer)
+            applyShot(shot, player);
+    });
+    physics->onCollision<Enemy, Player>([this](Registry &registry, Entity enemy, Entity player) {
+        Health &health = *registry.getComponents<Health>()[player.getId()];
+
+        if (health.value <= 0)
+            return;
+        destroyEntity(enemy);
+        health.value--;
+        if (health.value <= 0)
+            destroyEntity(player);
+    });
+    _engine.addModule(std::move(physics));
     _engine.registerComponent<Health>();
     _engine.registerComponent<Controllable>();
     _engine.registerComponent<Player>();
@@ -111,34 +148,18 @@ void rtype::Game::update() {
     double elapsedSeconds = 0;
 
     _tick++;
-    rtype::InputQueueSystem{}(_in, _engine.getRegistry(),
-        [this](int playerId) { return getEntityFromPlayerId(playerId); },
-        [this](int playerId) { addPlayer(playerId); },
-        [this](Entity player) { removePlayer(player); }
-    );
+    _engine.applySystem(rtype::InputQueueSystem{}, _in, [this](int playerId) { return getEntityFromPlayerId(playerId); }, [this](int playerId) { addPlayer(playerId); }, [this](Entity player) { removePlayer(player); });
     now = std::chrono::steady_clock::now();
     elapsedSeconds = std::chrono::duration<double>(now - _lastUpdate).count();
     _lastUpdate = now;
 
-    rtype::CooldownSystem{}(_engine.getRegistry(), elapsedSeconds);
-    rtype::ControlSystem{}(_engine.getRegistry(), _playerSpeed);
-    rtype::ShotSystem{}(_engine.getRegistry(), _shotInterval,
-        [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
-    );
-    rtype::EnemySystem{}(_engine.getRegistry(), _tick, _enemyInterval, _height,
-        [this](int y) { spawnEnemy(y); },
-        [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); }
-    );
-    PositionSystem{}(_engine.getRegistry());
-    rtype::BoundsSystem{}(_engine.getRegistry(), _width, _height);
-    OutOfBoundsSystem{}(_engine.getRegistry(), -20, -20, _width + 20, _height + 20,
-        [this](Entity entity) { destroyEntity(entity); }
-    );
-    rtype::ProjectileCollisionSystem{}(_engine.getRegistry(), _score,
-        [this](Entity entity) { destroyEntity(entity); }
-    );
-    rtype::EnemyCollisionSystem{}(_engine.getRegistry(),
-        [this](Entity entity) { destroyEntity(entity); }
-    );
-    rtype::SnapshotSystem{}(_engine.getRegistry(), _engine.getEntities(), _tick, _score, _out);
+    _engine.applySystem(rtype::CooldownSystem{}, elapsedSeconds);
+    _engine.applySystem(rtype::ControlSystem{}, _playerSpeed);
+    _engine.applySystem(rtype::ShotSystem{}, _shotInterval, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
+    _engine.applySystem(rtype::EnemySystem{}, _tick, _enemyInterval, _height, [this](int y) { spawnEnemy(y); }, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
+
+    _engine.update(elapsedSeconds);
+
+    _engine.applySystem(rtype::BoundsSystem{}, _width, _height);
+    _engine.applySystem(rtype::SnapshotSystem{}, _engine.getEntities(), _tick, _score, _out);
 }

@@ -32,5 +32,5 @@ void rtype::EnemySystem::operator()(Registry &registry, unsigned int &tick, int 
         shots.push_back(Position{position.x - 20, position.y});
     }
     for (const Position &shot : shots)
-        spawnProjectile(shot.x, shot.y, false);
+        spawnProjectile(static_cast<int>(shot.x), static_cast<int>(shot.y), false);
 }

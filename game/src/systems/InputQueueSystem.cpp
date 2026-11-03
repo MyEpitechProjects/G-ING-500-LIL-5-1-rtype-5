@@ -9,7 +9,7 @@
 
 #include <limits>
 
-void rtype::InputQueueSystem::operator()(std::vector<rtype::GameInput> &queuedInput, Registry &registry, const std::function<std::optional<Entity>(int)> &findPlayer, const std::function<void(int)> &addPlayer, const std::function<void(Entity)> &removePlayer) const {
+void rtype::InputQueueSystem::operator()(Registry &registry, std::vector<rtype::GameInput> &queuedInput, const std::function<std::optional<Entity>(int)> &findPlayer, const std::function<void(int)> &addPlayer, const std::function<void(Entity)> &removePlayer) const {
     std::vector<rtype::GameInput> input;
 
     input.swap(queuedInput);

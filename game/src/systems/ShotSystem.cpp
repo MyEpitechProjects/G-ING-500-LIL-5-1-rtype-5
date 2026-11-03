@@ -35,5 +35,5 @@ void rtype::ShotSystem::operator()(Registry &registry, double shotInterval, cons
         }
     }
     for (const Position &shot : shots)
-        spawnProjectile(shot.x, shot.y, true);
+        spawnProjectile(static_cast<int>(shot.x), static_cast<int>(shot.y), true);
 }
