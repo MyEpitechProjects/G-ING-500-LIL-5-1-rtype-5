@@ -97,7 +97,7 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
                 }
             }
         } else if (auto* welcome = dynamic_cast<Net::WelcomePacket*>(packet.get())) {
-            session_id = welcome->header.sessionId;
+            session_id = welcome->clientId;
             started = true;
             connected = true;
             std::unique_ptr<rtype::Object>  obj = std::make_unique<rtype::PlayerObject>(0, 0, 0, manager);
@@ -109,7 +109,6 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             ptr->set_animation("blue-stand");
             ptr->set_x(200);
             ptr->set_y(200);
-            ((PlayerObject*)ptr)->set_entity_id(welcome->entityId);
             manager.add_object("player", obj);
 
             
@@ -122,15 +121,16 @@ void rtype::NetworkObject::update(rtype::InputKeys& keys) {
             rtype::Animation *anim = ptr->get_animation("anim");
             anim->set_loop(true);
             manager.add_object("gun", obj);
-        } else if (auto* event = dynamic_cast<Net::GameEventPacket*>(packet.get())) {
-            if (event->eventType == Net::EventType::DESTROY || event->eventType == Net::EventType::DISCONNECTED){
+        } else if (auto* event = dynamic_cast<Net::EventPacket*>(packet.get())) {
+            auto* entity_event = dynamic_cast<const Net::EntityEvent*>(event->eventData.get());
+            if (entity_event && (event->eventType == Net::EventType::DESTROY || event->eventType == Net::EventType::DISCONNECTED)){
                 PlayerObject *obj = (PlayerObject *)manager.get_object("player");
-                if (obj && event->entityId == obj->get_entity_id()){
+                if (obj && entity_event->entityId == obj->get_entity_id()){
                     connected = false;
                     manager.remove_object("player");
                     manager.remove_object("gun");
                 } else {
-                    manager.remove_object(std::to_string(event->entityId));
+                    manager.remove_object(std::to_string(entity_event->entityId));
                 }
             }
         }

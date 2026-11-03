@@ -44,6 +44,7 @@ target_link_libraries(rtype_game PUBLIC
 add_executable(rtype_server
     server/src/main.cpp
     server/src/Server.cpp
+    server/src/Instance.cpp
 )
 
 target_include_directories(rtype_server PRIVATE
