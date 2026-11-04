@@ -38,6 +38,21 @@ target_include_directories(rtype_engine PUBLIC
     engine/include/components
 )
 
+add_library(rtype_engine_render STATIC
+    engine/src/modules/RenderModule.cpp
+)
+
+target_include_directories(rtype_engine_render PUBLIC
+    engine/include/modules
+)
+
+target_link_libraries(rtype_engine_render PUBLIC
+    rtype_engine
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+)
+
 add_library(rtype_game STATIC
     game/src/Game.cpp
     game/src/systems/BoundsSystem.cpp
