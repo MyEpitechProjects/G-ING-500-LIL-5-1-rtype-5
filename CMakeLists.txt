@@ -29,7 +29,6 @@ target_link_libraries(rtype_network PUBLIC
 )
 
 add_library(rtype_engine STATIC
-    engine/src/modules/PhysicsModule.cpp
     engine/src/systems/CollisionSystem.cpp
     engine/src/systems/GravitySystem.cpp
     engine/src/systems/OutOfBoundsSystem.cpp
@@ -40,6 +39,26 @@ target_include_directories(rtype_engine PUBLIC
     engine/include
     engine/include/modules
     engine/include/components
+    engine/include/modules
+)
+
+add_library(rtype_engine_physics STATIC
+    engine/src/modules/PhysicsModule.cpp
+)
+
+target_link_libraries(rtype_engine_physics PUBLIC
+    rtype_engine
+)
+
+add_library(rtype_engine_render STATIC
+    engine/src/modules/RenderModule.cpp
+)
+
+target_link_libraries(rtype_engine_render PUBLIC
+    rtype_engine
+    SFML::Graphics
+    SFML::Window
+    SFML::System
 )
 
 add_library(rtype_game STATIC
@@ -69,6 +88,7 @@ target_include_directories(rtype_game PUBLIC
 
 target_link_libraries(rtype_game PUBLIC
     rtype_engine
+    rtype_engine_physics
     rtype_network
 )
 
