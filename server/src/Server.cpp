@@ -187,7 +187,7 @@ std::uint32_t rtype::Server::createInstance() {
     const std::uint32_t instanceId = static_cast<std::uint32_t>(_idInstanceCounter);
     {
         std::lock_guard<std::mutex> lock(_instancesMutex);
-        _instances.try_emplace(instanceId, _wakeSignal, instanceId);
+        _instances.try_emplace(instanceId, instanceId);
     }
     _idInstanceCounter++;
 

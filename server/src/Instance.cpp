@@ -1,6 +1,6 @@
 #include "Instance.hpp"
 
-Instance::Instance(std::shared_ptr<WakeSignal> wakeSignal, std::uint32_t id) : _id(id), _game() {
+Instance::Instance(std::uint32_t id) : _id(id), _game() {
 }
 
 std::uint32_t Instance::getId() const {
