@@ -15,6 +15,7 @@ class WakeSignal {
         void wait();
 
         bool waitFor(std::chrono::milliseconds timeout);
+        bool waitUntil(std::chrono::steady_clock::time_point deadline);
 
     private:
         std::mutex _mutex;

@@ -1,4 +1,5 @@
 #include "PacketCodec.hpp"
+#include <cstring>
 
 void Net::PacketCodec::writeU16(std::vector<std::uint8_t>& out, std::uint16_t value)
 {
@@ -54,11 +55,10 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
                 return nullptr;
             return std::make_unique<HelloPacket>(header);
         } case PacketType::WELCOME: {
-            if (size != HEADER_WIRE_SIZE + 8)
+            if (size != HEADER_WIRE_SIZE + 4)
                 return nullptr;
             std::unique_ptr<WelcomePacket> packet = std::make_unique<WelcomePacket>(header);
-            packet->playerEntityId = readU32(data + HEADER_WIRE_SIZE);
-            packet->entityId = readU32(data + HEADER_WIRE_SIZE + sizeof(packet->playerEntityId));
+            packet->clientId = readU32(data + HEADER_WIRE_SIZE);
             return packet;
         } case PacketType::INPUT: {
             if (size != HEADER_WIRE_SIZE + 2)
@@ -81,25 +81,86 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
             packet->entities.reserve(count);
             for (std::size_t i = 0; i < count; ++i) {
                 const auto* entry = data + SNAPSHOT_BASE_WIRE_SIZE + i * ENTITY_WIRE_SIZE;
+                const std::uint32_t xBits = readU32(entry + 5);
+                const std::uint32_t yBits = readU32(entry + 9);
+                float x;
+                float y;
+                std::memcpy(&x, &xBits, sizeof(x));
+                std::memcpy(&y, &yBits, sizeof(y));
                 EntityState entity{readU32(entry), static_cast<EntityKind>(entry[4]),
-                    std::bit_cast<float, uint32_t>(readU32(entry + 5)),
-                    std::bit_cast<float, uint32_t>(readU32(entry + 9)),
+                    x, y,
                     readU16(entry + 13), entry[15]};
                 if (!validEntity(entity))
                     return nullptr;
                 packet->entities.push_back(entity);
             }
             return packet;
-        } case PacketType::EVENT: {
-            if (size != HEADER_WIRE_SIZE + 9)
+        } case PacketType::CREATE_INSTANCE: {
+            if (size != HEADER_WIRE_SIZE)
                 return nullptr;
-            std::unique_ptr<GameEventPacket> packet = std::make_unique<GameEventPacket>(header);
-            packet->eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
-            if (packet->eventType != Net::EventType::ACK && packet->eventType != Net::EventType::DESTROY && packet->eventType != Net::EventType::DISCONNECTED && packet->eventType != Net::EventType::NEW_CLIENT)
+            return std::make_unique<CreateInstancePacket>(header);
+        } case PacketType::INSTANCE: {
+            if (size != INSTANCE_WIRE_SIZE)
                 return nullptr;
-            packet->entityId = readU32(data + HEADER_WIRE_SIZE + 1);
-            packet->eventId = readU32(data + HEADER_WIRE_SIZE + 5);
+            std::unique_ptr<InstancePacket> packet = std::make_unique<InstancePacket>(header);
+            packet->instanceId = readU32(data + HEADER_WIRE_SIZE);
             return packet;
+        } case PacketType::EVENT: {
+            if (size < EVENT_BASE_WIRE_SIZE)
+                return nullptr;
+            const EventType eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
+            std::shared_ptr<const IEvent> eventData = deserializeEvent(eventType,
+                data + EVENT_BASE_WIRE_SIZE, size - EVENT_BASE_WIRE_SIZE);
+            if (!eventData)
+                return nullptr;
+            std::unique_ptr<EventPacket> packet = std::make_unique<EventPacket>(header);
+            packet->eventType = eventType;
+            packet->eventId = readU32(data + HEADER_WIRE_SIZE + 1);
+            packet->eventData = std::move(eventData);
+            return packet;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+bool Net::PacketCodec::validEventData(EventType type, const IEvent &event) {
+    switch (type) {
+        case EventType::ACK:
+            return dynamic_cast<const EmptyEvent*>(&event) != nullptr;
+        case EventType::NEW_CLIENT:
+        case EventType::DESTROY:
+        case EventType::DISCONNECTED:
+            return dynamic_cast<const EntityEvent*>(&event) != nullptr;
+        case EventType::CHAT: {
+            const auto* chat = dynamic_cast<const ChatEvent*>(&event);
+            return chat != nullptr && chat->text.size() <= MAX_CHAT_LENGTH;
+        }
+        default:
+            return false;
+    }
+}
+
+std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {
+    switch (type) {
+        case EventType::ACK:
+            if (size != 0)
+                return nullptr;
+            return std::make_shared<EmptyEvent>();
+        case EventType::NEW_CLIENT:
+        case EventType::DESTROY:
+        case EventType::DISCONNECTED:
+            if (size != ENTITY_EVENT_WIRE_SIZE)
+                return nullptr;
+            return std::make_shared<EntityEvent>(readU32(data));
+        case EventType::CHAT: {
+            if (size < CHAT_EVENT_BASE_WIRE_SIZE)
+                return nullptr;
+            const std::uint16_t length = readU16(data + 4);
+            if (length > MAX_CHAT_LENGTH || size != CHAT_EVENT_BASE_WIRE_SIZE + length)
+                return nullptr;
+            const auto* text = reinterpret_cast<const char*>(data + CHAT_EVENT_BASE_WIRE_SIZE);
+            return std::make_shared<ChatEvent>(readU32(data), std::string(text, length));
         }
         default:
             return nullptr;

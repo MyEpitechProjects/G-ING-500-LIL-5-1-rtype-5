@@ -5,7 +5,6 @@
     #include <optional>
     #include <memory>
     #include <cstdint>
-    #include <bit>
     #include <cmath>
     #include <limits>
     #include <stdexcept>
@@ -32,6 +31,9 @@ namespace Net {
                 const Net::PacketHeader& header, Net::PacketType expected);
 
             static bool validEntity(const Net::EntityState& entity);
+
+            static bool validEventData(Net::EventType type, const Net::IEvent &event);
+            static std::shared_ptr<const Net::IEvent> deserializeEvent(Net::EventType type, const std::uint8_t* data, std::size_t size);
 
             static Packet deserialize(const std::uint8_t* data, std::size_t size);
             static Packet deserialize(const std::vector<std::uint8_t>& data)

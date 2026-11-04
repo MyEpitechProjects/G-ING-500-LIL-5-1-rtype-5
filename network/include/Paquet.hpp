@@ -3,8 +3,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <vector>
 
+#include "IEvent.hpp"
 #include "IPacket.hpp"
 
 namespace Net {
@@ -15,13 +18,21 @@ namespace Net {
     constexpr std::size_t ENTITY_WIRE_SIZE = 16;
     constexpr std::size_t SNAPSHOT_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 6;
     constexpr std::size_t MAX_SNAPSHOT_ENTITIES = (MAX_DATAGRAM_SIZE - SNAPSHOT_BASE_WIRE_SIZE) / ENTITY_WIRE_SIZE;
+    constexpr std::size_t INSTANCE_WIRE_SIZE = HEADER_WIRE_SIZE + 4;
+    constexpr std::uint32_t NO_INSTANCE = 0;
+    constexpr std::size_t EVENT_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 5;
+    constexpr std::size_t ENTITY_EVENT_WIRE_SIZE = 4;
+    constexpr std::size_t CHAT_EVENT_BASE_WIRE_SIZE = 6;
+    constexpr std::size_t MAX_CHAT_LENGTH = 256;
 
     enum PacketType : std::uint8_t {
         INPUT = 1,
         SNAPSHOT = 2,
         HELLO = 3,
         WELCOME = 4,
-        EVENT = 5,
+        CREATE_INSTANCE = 5,
+        INSTANCE = 6,
+        EVENT = 7,
     };
 
     enum EventType : std::uint8_t {
@@ -29,6 +40,7 @@ namespace Net {
         DESTROY = 2,
         ACK = 3,
         DISCONNECTED = 4,
+        CHAT = 5,
     };
 
     enum InputButton : std::uint16_t {
@@ -121,26 +133,82 @@ namespace Net {
         ~WelcomePacket() override = default;
 
         PacketHeader header{PacketType::WELCOME};
-        std::uint32_t playerEntityId = 0;
-        std::uint32_t entityId = 0;
+        std::uint32_t clientId = 0;
 
         std::vector<std::uint8_t> serialize() const override;
     };
 
     /*
-    ** GAME EVENT PACKET
+    ** INSTANCE PACKETS
     */
-     
-    struct GameEventPacket : IPacket {
-        GameEventPacket() = default;
-        GameEventPacket(PacketHeader header_packet) : header(header_packet) {}
-        ~GameEventPacket() override = default;
+
+    struct CreateInstancePacket : IPacket {
+        CreateInstancePacket() = default;
+        CreateInstancePacket(PacketHeader header_packet) : header(header_packet) {}
+        ~CreateInstancePacket() override = default;
+
+        PacketHeader header{PacketType::CREATE_INSTANCE};
+
+        std::vector<std::uint8_t> serialize() const override;
+    };
+
+    struct InstancePacket : IPacket {
+        InstancePacket() = default;
+        InstancePacket(PacketHeader header_packet) : header(header_packet) {}
+        ~InstancePacket() override = default;
+
+        PacketHeader header{PacketType::INSTANCE};
+        std::uint32_t instanceId = NO_INSTANCE;
+
+        std::vector<std::uint8_t> serialize() const override;
+    };
+
+
+    /*
+    ** EVENT DATA
+    */
+
+    struct EmptyEvent : IEvent {
+        EmptyEvent() = default;
+        ~EmptyEvent() override = default;
+
+        void serialize(std::vector<std::uint8_t> &out) const override;
+    };
+
+    struct EntityEvent : IEvent {
+        EntityEvent() = default;
+        explicit EntityEvent(std::uint32_t id);
+        ~EntityEvent() override = default;
+
+        std::uint32_t entityId = 0;
+
+        void serialize(std::vector<std::uint8_t> &out) const override;
+    };
+
+    struct ChatEvent : IEvent {
+        ChatEvent() = default;
+        ChatEvent(std::uint32_t sender, std::string message);
+        ~ChatEvent() override = default;
+
+        std::uint32_t senderId = 0;
+        std::string text;
+
+        void serialize(std::vector<std::uint8_t> &out) const override;
+    };
+
+    /*
+    ** EVENT PACKET
+    */
+
+    struct EventPacket : IPacket {
+        EventPacket() = default;
+        EventPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~EventPacket() override = default;
 
         PacketHeader header{PacketType::EVENT};
         EventType eventType = EventType::ACK;
-
-        std::uint32_t entityId = 0;
         std::uint32_t eventId = 0;
+        std::shared_ptr<const IEvent> eventData = std::make_shared<EmptyEvent>();
 
         std::vector<std::uint8_t> serialize() const override;
     };

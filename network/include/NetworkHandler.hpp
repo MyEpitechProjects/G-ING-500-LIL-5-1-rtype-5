@@ -15,9 +15,9 @@
     #include "Paquet.hpp"
     #include "PacketCodec.hpp"
 
-    using asio::ip::udp;
-
 namespace Net {
+
+    using asio::ip::udp;
 
     template<typename Packet>
     struct OutgoingPacket {

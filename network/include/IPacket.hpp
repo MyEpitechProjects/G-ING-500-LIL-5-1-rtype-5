@@ -1,6 +1,9 @@
 #ifndef IPACKET_HPP
     #define IPACKET_HPP
 
+    #include <cstdint>
+    #include <vector>
+
 class IPacket {
     public:
         virtual ~IPacket() = default;
