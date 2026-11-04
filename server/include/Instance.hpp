@@ -24,7 +24,7 @@ class Instance {
         void queueInput(const rtype::GameInput &input);
 
     public:
-        Instance(std::shared_ptr<WakeSignal> wakeSignal, std::uint32_t id);
+        Instance(std::uint32_t id);
         ~Instance() = default;
 
         std::uint32_t getId() const;
