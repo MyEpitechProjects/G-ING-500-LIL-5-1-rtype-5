@@ -172,15 +172,6 @@ void rtype::Server::handlePacket(Net::EventPacket &packet, Net::udp::endpoint se
     }
 }
 
-Net::EventPacket rtype::Server::createChatEvent(std::size_t senderId, const std::string &text) {
-    Net::EventPacket packet;
-    packet.eventType = Net::EventType::CHAT;
-    packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
-    packet.eventData = std::make_shared<Net::ChatEvent>(static_cast<std::uint32_t>(senderId), text);
-    _idEventCounter++;
-    return packet;
-}
-
 void rtype::Server::handleChat(const Net::ChatEvent &chat, Net::udp::endpoint sender, std::uint32_t sessionId) {
     auto sessionIt = _sessions.find(sender);
     if (sessionIt == _sessions.end() || sessionIt->second.client_id != sessionId)
