@@ -51,4 +51,6 @@ void Instance::update() {
         _pendingOutputs.insert(_pendingOutputs.end(), std::make_move_iterator(outputs.begin()), std::make_move_iterator(outputs.end()));
     }
     _updating = false;
+    if (_wakeSignal)
+        _wakeSignal->notify();
 }

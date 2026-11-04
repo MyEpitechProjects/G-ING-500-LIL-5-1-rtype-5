@@ -70,6 +70,27 @@ std::vector<std::uint8_t> Net::InstancePacket::serialize() const {
     return out;
 }
 
+std::vector<std::uint8_t> Net::ListInstancesPacket::serialize() const {
+    std::vector<std::uint8_t> out;
+    out.reserve(HEADER_WIRE_SIZE);
+    PacketCodec::writeHeader(out, header, PacketType::LIST_INSTANCES);
+    return out;
+}
+
+std::vector<std::uint8_t> Net::InstanceListPacket::serialize() const {
+    if (instances.size() > MAX_LISTED_INSTANCES)
+        throw std::invalid_argument("Too many listed instances");
+    std::vector<std::uint8_t> out;
+    out.reserve(INSTANCE_LIST_BASE_WIRE_SIZE + instances.size() * INSTANCE_INFO_WIRE_SIZE);
+    PacketCodec::writeHeader(out, header, PacketType::INSTANCE_LIST);
+    PacketCodec::writeU16(out, static_cast<std::uint16_t>(instances.size()));
+    for (const auto& info : instances) {
+        PacketCodec::writeU32(out, info.id);
+        PacketCodec::writeU16(out, info.players);
+    }
+    return out;
+}
+
 std::vector<std::uint8_t> Net::EventPacket::serialize() const {
     if (!eventData || !PacketCodec::validEventData(eventType, *eventData))
         throw std::invalid_argument("Event data does not match event type");

@@ -1,6 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-#include <optional>
+#include <cstdint>
 #include <vector>
 #include "AssetsPak.hpp"
 
@@ -14,22 +14,14 @@ namespace rtype {
 
     class Animation {
         private:
-            sf::Texture texture;
-            std::vector<Frame> frames;
-            uint32_t size = 0;
-            bool loop = false;
-            sf::Clock animationClock;
-            sf::Time animationDelay = sf::milliseconds(0);
-            bool reversed = false;
+            sf::Texture _texture;
+            std::vector<Frame> _frames;
+            double _delay = 0.0;
+
         public:
             Animation(std::vector<uint8_t> data, rtype::AssetsPak &assets);
-            ~Animation();
-            const sf::Texture& get_texture() const;
-            const rtype::Frame& next_frame();
-            void reset_animation();
-            const rtype::Frame& get_frame(uint32_t frame_index) const;
-            void set_reverse(bool status);
-            void set_loop(bool status);
 
+            const sf::Texture &texture() const;
+            const Frame &frameAt(double elapsed, bool loop, bool reversed) const;
     };
 }

@@ -39,7 +39,6 @@ target_include_directories(rtype_engine PUBLIC
     engine/include
     engine/include/modules
     engine/include/components
-    engine/include/modules
 )
 
 add_library(rtype_engine_physics STATIC
@@ -132,15 +131,12 @@ add_custom_target(rtype_client_assets
 
 add_executable(rtype_client
     client/src/main.cpp
-    client/src/Graphic.cpp
+    client/src/App.cpp
     client/src/AssetsPak.cpp
-    client/src/objects/Object.cpp
     client/src/Animation.cpp
-    client/src/objects/PlayerObject.cpp
-    client/src/ObjectManager.cpp
-    client/src/objects/ShootLoadingObject.cpp
-    client/src/objects/NetworkObject.cpp
-    client/src/objects/EnemyObject.cpp
+    client/src/Resources.cpp
+    client/src/ClientNet.cpp
+    client/src/ecs/Systems.cpp
 )
 
 target_include_directories(rtype_client PRIVATE
@@ -149,6 +145,7 @@ target_include_directories(rtype_client PRIVATE
 
 target_link_libraries(rtype_client PRIVATE
     rtype_network
+    rtype_engine
     SFML::Graphics
     SFML::Window
     SFML::System

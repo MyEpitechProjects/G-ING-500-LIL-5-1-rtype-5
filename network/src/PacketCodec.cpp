@@ -105,6 +105,24 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
             std::unique_ptr<InstancePacket> packet = std::make_unique<InstancePacket>(header);
             packet->instanceId = readU32(data + HEADER_WIRE_SIZE);
             return packet;
+        } case PacketType::LIST_INSTANCES: {
+            if (size != HEADER_WIRE_SIZE)
+                return nullptr;
+            return std::make_unique<ListInstancesPacket>(header);
+        } case PacketType::INSTANCE_LIST: {
+            if (size < INSTANCE_LIST_BASE_WIRE_SIZE)
+                return nullptr;
+            const auto count = readU16(data + HEADER_WIRE_SIZE);
+            if (count > MAX_LISTED_INSTANCES
+                || size != INSTANCE_LIST_BASE_WIRE_SIZE + count * INSTANCE_INFO_WIRE_SIZE)
+                return nullptr;
+            std::unique_ptr<InstanceListPacket> packet = std::make_unique<InstanceListPacket>(header);
+            packet->instances.reserve(count);
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto* entry = data + INSTANCE_LIST_BASE_WIRE_SIZE + i * INSTANCE_INFO_WIRE_SIZE;
+                packet->instances.push_back(InstanceInfo{readU32(entry), readU16(entry + 4)});
+            }
+            return packet;
         } case PacketType::EVENT: {
             if (size < EVENT_BASE_WIRE_SIZE)
                 return nullptr;
@@ -131,6 +149,7 @@ bool Net::PacketCodec::validEventData(EventType type, const IEvent &event) {
         case EventType::NEW_CLIENT:
         case EventType::DESTROY:
         case EventType::DISCONNECTED:
+        case EventType::YOUR_ENTITY:
             return dynamic_cast<const EntityEvent*>(&event) != nullptr;
         case EventType::CHAT: {
             const auto* chat = dynamic_cast<const ChatEvent*>(&event);
@@ -150,6 +169,7 @@ std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType 
         case EventType::NEW_CLIENT:
         case EventType::DESTROY:
         case EventType::DISCONNECTED:
+        case EventType::YOUR_ENTITY:
             if (size != ENTITY_EVENT_WIRE_SIZE)
                 return nullptr;
             return std::make_shared<EntityEvent>(readU32(data));

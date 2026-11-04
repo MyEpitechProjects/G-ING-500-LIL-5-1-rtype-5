@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include <algorithm>
 
 rtype::Server::Server(int port, std::size_t tickRate) : _wakeSignal(std::make_shared<WakeSignal>()), _netHandler(port, _wakeSignal), _pool(std::thread::hardware_concurrency()), _idCounterSession(0), _idEventCounter(0), _idInstanceCounter(1) {
     _tickPeriod = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -17,7 +18,7 @@ void rtype::Server::run() {
         try {
             _netHandler.run();
         } catch (const std::exception& error) {
-            std::cerr << "Erreur du thread reseau : " << error.what() << std::endl;
+            std::cerr << "Network thread error : " << error.what() << std::endl;
             _netHandler.stop();
         }
     });
@@ -47,7 +48,6 @@ void rtype::Server::run() {
         handlePendingEvents();
 
         // wait next tick, define by tick rate :
-    
         _wakeSignal->waitUntil(nextTick);
     }
 }
@@ -58,6 +58,8 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
     } else if (auto packet = dynamic_cast<Net::CreateInstancePacket*>(incomingPacket.packet.get())) {
         handlePacket(*packet, incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::InstancePacket*>(incomingPacket.packet.get())) {
+        handlePacket(*packet, incomingPacket.sender);
+    } else if (auto packet = dynamic_cast<Net::ListInstancesPacket*>(incomingPacket.packet.get())) {
         handlePacket(*packet, incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
         handlePacket(*packet, incomingPacket.sender);
@@ -89,6 +91,8 @@ void rtype::Server::handlePacket(Net::CreateInstancePacket &, Net::udp::endpoint
         const std::uint32_t newInstanceId = createInstance();
         if (joinInstance(session, newInstanceId))
             response.instanceId = newInstanceId;
+    } else {
+        response.instanceId = static_cast<std::uint32_t>(session.instance_id);
     }
     _netHandler.send(std::make_unique<Net::InstancePacket>(response), sender);
 }
@@ -103,6 +107,33 @@ void rtype::Server::handlePacket(Net::InstancePacket &packet, Net::udp::endpoint
     response.instanceId = joinInstance(sessionIt->second, packet.instanceId) ? packet.instanceId : Net::NO_INSTANCE;
     _netHandler.send(std::make_unique<Net::InstancePacket>(response), sender);
 }
+
+void rtype::Server::handlePacket(Net::ListInstancesPacket &packet, Net::udp::endpoint sender) {
+    auto sessionIt = _sessions.find(sender);
+    if (sessionIt == _sessions.end() || sessionIt->second.client_id != packet.header.sessionId)
+        return;
+
+    std::unordered_map<std::uint32_t, std::uint16_t> players;
+    for (const auto &[endpoint, session] : _sessions) {
+        if (session.instance_id != Net::NO_INSTANCE)
+            ++players[static_cast<std::uint32_t>(session.instance_id)];
+    }
+
+    Net::InstanceListPacket response;
+    response.header.sessionId = packet.header.sessionId;
+    {
+        std::lock_guard<std::mutex> lock(_instancesMutex);
+        for (const auto &[instanceId, instance] : _instances) {
+            if (response.instances.size() >= Net::MAX_LISTED_INSTANCES)
+                break;
+            response.instances.push_back(Net::InstanceInfo{instanceId, players[instanceId]});
+        }
+    }
+    std::sort(response.instances.begin(), response.instances.end(),
+        [](const Net::InstanceInfo &a, const Net::InstanceInfo &b) { return a.id < b.id; });
+    _netHandler.send(std::make_unique<Net::InstanceListPacket>(response), sender);
+}
+
 
 void rtype::Server::handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender) {
     auto sessionIt = _sessions.find(sender);
@@ -187,7 +218,7 @@ std::uint32_t rtype::Server::createInstance() {
     const std::uint32_t instanceId = static_cast<std::uint32_t>(_idInstanceCounter);
     {
         std::lock_guard<std::mutex> lock(_instancesMutex);
-        _instances.try_emplace(instanceId, instanceId);
+        _instances.try_emplace(instanceId, _wakeSignal, instanceId);
     }
     _idInstanceCounter++;
 
@@ -262,9 +293,16 @@ void rtype::Server::dispatchOutput(std::uint32_t instanceId, const GameOutput &o
         case GameOutputType::Snapshot:
             sendToInstance(instanceId, std::make_shared<Net::SnapshotPacket>(convertGameOutput(output)));
             break;
-        case GameOutputType::PlayerCreated:
+        case GameOutputType::PlayerCreated: {
             broadcastEvent(instanceId, createEntityEvent(Net::EventType::NEW_CLIENT, output.entityId));
+            // Event pour que le client sait qui est son player
+            Net::EventPacket mine = createEntityEvent(Net::EventType::YOUR_ENTITY, output.entityId);
+            mine.header.sessionId = output.clientId;
+            insertPendingEvent(output.clientId,
+                PendingEvent{std::make_shared<Net::EventPacket>(mine), std::chrono::steady_clock::now()},
+                mine.eventId);
             break;
+        }
         case GameOutputType::EntityDestroyed:
             broadcastEvent(instanceId, createEntityEvent(Net::EventType::DESTROY, output.entityId));
             break;

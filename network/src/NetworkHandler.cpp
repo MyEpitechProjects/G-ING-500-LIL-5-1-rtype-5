@@ -19,14 +19,14 @@ void Net::NetworkHandler::receive() {
                 return;
             }
             if (error) {
-                std::cerr << "Erreur de reception : " << error.message() << '\n';
+                std::cerr << "Receive error : " << error.message() << '\n';
                 return;
             }
             auto packet = PacketCodec::deserialize(_receivedQueue.data(), received);
             if (packet) {
                 {
                     std::lock_guard<std::mutex> lock(_incomingMutex);
-                    _incomingQueue.push({_sender, std::move(packet)});
+                    _incomingQueue.push({_sender, std::move(packet), std::chrono::steady_clock::now()});
                 }
                 if (_wakeSignal)
                     _wakeSignal->notify();
@@ -75,7 +75,7 @@ void Net::NetworkHandler::flushOutgoing() {
         auto bytes = std::make_shared<std::vector<std::uint8_t>>(packet.packet->serialize());
         _socket.async_send_to(asio::buffer(*bytes), packet.destination, [bytes](const asio::error_code& error, [[maybe_unused]]std::size_t sent) {
             if (error) {
-                std::cerr << "Erreur d'envoi : " << error.message() << '\n';
+                std::cerr << "Failed to send : " << error.message() << '\n';
             }
         });
     }
