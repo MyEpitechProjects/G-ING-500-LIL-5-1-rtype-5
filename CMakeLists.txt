@@ -29,6 +29,8 @@ target_link_libraries(rtype_network PUBLIC
 )
 
 add_library(rtype_engine STATIC
+    engine/src/systems/CollisionSystem.cpp
+    engine/src/systems/GravitySystem.cpp
     engine/src/systems/OutOfBoundsSystem.cpp
     engine/src/systems/PositionSystem.cpp
 )
@@ -36,14 +38,19 @@ add_library(rtype_engine STATIC
 target_include_directories(rtype_engine PUBLIC
     engine/include
     engine/include/components
+    engine/include/modules
+)
+
+add_library(rtype_engine_physics STATIC
+    engine/src/modules/PhysicsModule.cpp
+)
+
+target_link_libraries(rtype_engine_physics PUBLIC
+    rtype_engine
 )
 
 add_library(rtype_engine_render STATIC
     engine/src/modules/RenderModule.cpp
-)
-
-target_include_directories(rtype_engine_render PUBLIC
-    engine/include/modules
 )
 
 target_link_libraries(rtype_engine_render PUBLIC
@@ -59,13 +66,11 @@ add_library(rtype_game STATIC
     game/src/systems/ControlAssignmentSystem.cpp
     game/src/systems/ControlSystem.cpp
     game/src/systems/CooldownSystem.cpp
-    game/src/systems/EnemyCollisionSystem.cpp
     game/src/systems/EnemySpawnSystem.cpp
     game/src/systems/EnemySystem.cpp
     game/src/systems/InputQueueSystem.cpp
     game/src/systems/PlayerRemovalSystem.cpp
     game/src/systems/PlayerSpawnSystem.cpp
-    game/src/systems/ProjectileCollisionSystem.cpp
     game/src/systems/ProjectileSpawnSystem.cpp
     game/src/systems/ShotSystem.cpp
     game/src/systems/SnapshotSystem.cpp
@@ -79,6 +84,7 @@ target_include_directories(rtype_game PUBLIC
 
 target_link_libraries(rtype_game PUBLIC
     rtype_engine
+    rtype_engine_physics
     rtype_network
 )
 
