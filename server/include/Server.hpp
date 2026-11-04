@@ -11,6 +11,7 @@
     #include <queue>
     #include <memory>
     #include <ranges>
+    #include <string>
     #include <tuple>
     #include <utility>
     #include <vector>
@@ -34,6 +35,8 @@ namespace rtype {
             std::size_t _idCounterSession;
             std::size_t _idEventCounter;
             std::size_t _idInstanceCounter;
+
+            //--------------------------------PACKET HANDLING-----------------------------------//
 
             void handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet>& incomingPacket);
             void handlePacket(Net::HelloPacket &packet, Net::udp::endpoint sender);

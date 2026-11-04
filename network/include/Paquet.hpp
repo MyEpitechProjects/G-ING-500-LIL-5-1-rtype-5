@@ -90,6 +90,7 @@ namespace Net {
 
         std::vector<std::uint8_t> serialize() const override;
     };
+    constexpr std::size_t INSTANCE_LIST_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 2;
 
     /*
     ** SNAPSHOT PACKET

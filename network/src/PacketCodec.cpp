@@ -160,7 +160,8 @@ bool Net::PacketCodec::validEventData(EventType type, const IEvent &event) {
     }
 }
 
-std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {    switch (type) {
+std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {
+    switch (type) {
         case EventType::ACK:
             if (size != 0)
                 return nullptr;

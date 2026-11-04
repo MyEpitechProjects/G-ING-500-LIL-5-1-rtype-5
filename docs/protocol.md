@@ -34,11 +34,14 @@ uniqueness or application-level validity. It does not increment the sequence aut
 | `1` | `INPUT` | Player input, client → server | 10 bytes |
 | `2` | `SNAPSHOT` | Entity states, server → client | `14 + 16 × N` bytes |
 | `3` | `HELLO` | Connection request, client → server | 8 bytes |
-| `4` | `WELCOME` | Player entity assignment, server → client | 12 bytes |
-| `5` | `EVENT` | Game events, server → client; acknowledgements, client → server | 17 bytes |
+| `4` | `WELCOME` | Session assignment, server → client | 12 bytes |
+| `5` | `CREATE_INSTANCE` | Instance creation request, client → server | 8 bytes |
+| `6` | `INSTANCE` | Instance join request (client → server) and answer (server → client) | 12 bytes |
+| `7` | `EVENT` | Reliable events, both directions; acknowledgements | 13 bytes + payload |
 
 These directions describe the purpose of the messages; the codec does not enforce
-their direction or handle connections or sessions itself.
+their direction or handle connections or sessions itself. The server behavior
+for each packet is described in [Server](server.md).
 
 ### HELLO — type 3
 
@@ -48,13 +51,32 @@ Contains only the common header, with no payload.
 
 | Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 8 | 4 | `playerEntityId` | Identifier of the entity assigned to the player |
+| 8 | 4 | `clientId` | Session identifier assigned by the server |
+
+The server also puts the session identifier in `header.sessionId`. The client
+must reuse it in the `sessionId` of the packets it sends afterwards.
+
+### CREATE_INSTANCE — type 5
+
+Contains only the common header, with no payload. Asks the server to create a
+new instance and to add the sender to it. The server answers with `INSTANCE`.
+
+### INSTANCE — type 6
+
+| Offset | Size | Field | Description |
+| --- | --- | --- | --- |
+| 8 | 4 | `instanceId` | Instance identifier, `0` (`NO_INSTANCE`) means none |
+
+- Client → server: request to join the instance `instanceId`.
+- Server → client: answer to `CREATE_INSTANCE` or to a join request.
+  `instanceId` is the instance the client is now in, or `0` if the request
+  failed.
 
 ### INPUT — type 1
 
 | Offset | Size | Field | Description |
 | --- | --- | --- | --- |
-| 8 | 2 | `buttons` | Bitmask of pressed directions |
+| 8 | 2 | `buttons` | Bitmask of pressed buttons |
 
 | Bit | Value | Button |
 | --- | --- | --- |
@@ -62,9 +84,11 @@ Contains only the common header, with no payload.
 | 1 | `0x0002` | `DOWN` |
 | 2 | `0x0004` | `LEFT` |
 | 3 | `0x0008` | `RIGHT` |
+| 4 | `0x0010` | `FIRE` |
 
 Buttons are combined with bitwise OR: `UP | RIGHT = 0x0009`.
-The value `0` means no direction is pressed. The codec accepts opposite directions simultaneously.
+The value `0` means no button is pressed. The codec accepts opposite directions
+simultaneously; other bits are rejected.
 
 ### SNAPSHOT — type 2
 
@@ -98,32 +122,60 @@ They can be combined. Other bits in `flags` are currently not rejected by the co
 Coordinates must be finite: NaN and infinities are rejected.
 The codec applies no position limits or application-level constraints to `health` or `id`.
 
-### EVENT — type 5 (`GameEventPacket`)
+### EVENT — type 7 (`EventPacket`)
 
-Every event, including an acknowledgement, uses the same **17-byte** format:
-the common 8-byte header followed by a 9-byte payload.
+Every event starts with the common 8-byte header, followed by a 5-byte event
+base, then a payload whose layout depends on `eventType`.
 
 | Offset | Size | Field | Description |
 | --- | --- | --- | --- |
 | 8 | 1 | `eventType` | Event subtype from the table below |
-| 9 | 4 | `entityId` | Entity concerned by the event; ignored by the server for an ACK |
-| 13 | 4 | `eventId` | Identifier used to acknowledge the event |
+| 9 | 4 | `eventId` | Identifier used to acknowledge the event |
+| 13 | n | `eventData` | Payload, its layout and size `n` depend on `eventType` |
 
-| Value | Name | Purpose and current use |
-| --- | --- | --- |
-| `1` | `NEW_CLIENT` | Broadcast when the game creates a player; `entityId` identifies that player entity |
-| `2` | `DESTROY` | Broadcast when the game destroys an entity; `entityId` identifies the destroyed entity |
-| `3` | `ACK` | Client acknowledgement of the event identified by `eventId` |
-| `4` | `DISCONNECTED` | Defined subtype|
+| Value | Name | Payload (`eventData`) | Purpose |
+| --- | --- | --- | --- |
+| `1` | `NEW_CLIENT` | `EntityEvent` (4 bytes: `entityId`) | Server → client: the game created a player entity |
+| `2` | `DESTROY` | `EntityEvent` (4 bytes: `entityId`) | Server → client: the game destroyed an entity |
+| `3` | `ACK` | `EmptyEvent` (0 bytes) | Client → server: acknowledgement of the event identified by `eventId` |
+| `4` | `DISCONNECTED` | `EntityEvent` (4 bytes) | Server → client: a session timed out; the field carries its **session identifier** |
+| `5` | `CHAT` | `ChatEvent` (6 + `length` bytes) | Both directions: text message for every player of the sender's instance |
 
-The default subtype is `ACK`, and both identifiers default to `0`.
-`eventId` is independent of the common header's `sequence` field.
+A packet whose size does not match `13 + n` for its `eventType`, or whose
+`eventType` is unknown, is rejected. Serializing an `EventPacket` whose payload
+does not match its `eventType` throws `std::invalid_argument`.
+
+#### CHAT payload (`ChatEvent`)
+
+| Offset in payload | Size | Field | Description |
+| --- | --- | --- | --- |
+| 0 | 4 | `senderId` | Session identifier of the player who wrote the message |
+| 4 | 2 | `length` | Text length in bytes, at most `MAX_CHAT_LENGTH` (256) |
+| 6 | `length` | `text` | Raw text bytes (UTF-8), no terminating null byte |
+
+The client sends a `CHAT` event to the server with its own `header.sessionId`;
+the server ignores the client's `senderId` and `eventId`. If the sender belongs
+to an instance and the text is not empty, the server broadcasts a new `CHAT`
+event, with its own `eventId` and `senderId` set to the sender's session
+identifier, to every session of that instance, sender included. This broadcast
+is acknowledged and retried like any other event, so clients must deduplicate
+chat messages by `eventId`. The client-to-server message itself is not
+acknowledged. A `length` above 256 or a size other than `13 + 6 + length` is
+rejected.
+
+The default subtype is `ACK` with an `EmptyEvent` payload, and `eventId`
+defaults to `0`. `eventId` is independent of the common header's `sequence` field.
+
+To add an event: add the `EventType` value, a payload struct implementing
+`Net::IEvent`, and its case in `PacketCodec::validEventData` and
+`PacketCodec::deserializeEvent` (which checks the payload size).
 
 #### Broadcast, acknowledgements and retries
 
-The server assigns an event identifier and records the event in every current
-session's pending-event map. Each recipient receives its own packet with the same
-`eventId` and `entityId`, but with `header.sessionId` set to that recipient's
+Events are sent to the sessions of one instance. The server assigns an event
+identifier and records the event in the pending-event map of every session of
+that instance. Each recipient receives its own packet with the same
+`eventId` and `eventData`, but with `header.sessionId` set to that recipient's
 session identifier. This field does not identify the player announced by
 `NEW_CLIENT`.
 
@@ -136,7 +188,7 @@ no retry limit or expiry while the session remains active.
 To acknowledge an event, a client sends an `EVENT` with subtype `ACK`, the same
 `eventId`, and its own `header.sessionId`. The server removes the pending event
 only from the sender endpoint's session, provided the session identifier matches.
-The ACK's `entityId` is ignored and may be zero. An unknown or already acknowledged
+An unknown or already acknowledged
 event identifier has no effect on the pending-event map. ACKs are not themselves
 acknowledged. Removing a session also removes its pending events.
 
@@ -151,6 +203,7 @@ A packet is rejected if:
 - the version differs from `1` or the type is unknown;
 - the size does not exactly match the packet type: truncated data and extra bytes are rejected;
 - an `INPUT` contains undefined button bits;
+- an `EVENT` has an unknown subtype or a payload size that does not match it;
 - a `SNAPSHOT` declares more than 74 entities or a size other than `14 + 16 × count`;
 - an entity contains an unknown type or a non-finite coordinate.
 
@@ -159,8 +212,8 @@ The `serialize() const` methods return the packet bytes. They throw
 if the buttons are invalid, or if the snapshot contains too many entities or an
 invalid entity. An invalid entity is not skipped: snapshot serialization fails.
 
-For `EVENT`, the decoder checks for exactly 17 bytes. The intended subtype check
-accepts only the four values listed above.
+Serializing an `EVENT` throws if its payload does not match its subtype or if a
+chat message is longer than 256 bytes.
 
 ## Hexadecimal examples
 
@@ -176,10 +229,22 @@ INPUT, version 1, sequence 1, session 42, UP and RIGHT buttons:
 01 01 00 01 00 00 00 2A 00 09
 ```
 
-WELCOME, version 1, sequence 0, session 42 and player entity 7:
+WELCOME, version 1, sequence 0, session 42:
 
 ```text
-04 01 00 00 00 00 00 2A 00 00 00 07
+04 01 00 00 00 00 00 2A 00 00 00 2A
+```
+
+CREATE_INSTANCE from session 42:
+
+```text
+05 01 00 00 00 00 00 2A
+```
+
+INSTANCE, join request or answer for instance 3, session 42:
+
+```text
+06 01 00 00 00 00 00 2A 00 00 00 03
 ```
 
 Empty SNAPSHOT, version 1, sequence 2, session 42 and server tick 100:
@@ -188,20 +253,23 @@ Empty SNAPSHOT, version 1, sequence 2, session 42 and server tick 100:
 02 01 00 02 00 00 00 2A 00 00 00 64 00 00
 ```
 
-DESTROY event, version 1, sequence 0, recipient session 42, entity 7 and event 100:
+DESTROY event 100, recipient session 42, entity 7:
 
 ```text
-05 01 00 00 00 00 00 2A 02 00 00 00 07 00 00 00 64
+07 01 00 00 00 00 00 2A 02 00 00 00 64 00 00 00 07
 ```
 
-ACK for event 100 from session 42, with the unused entity identifier set to zero:
+ACK of event 100 from session 42:
 
 ```text
-05 01 00 00 00 00 00 2A 03 00 00 00 00 00 00 00 64
+07 01 00 00 00 00 00 2A 03 00 00 00 64
 ```
 
-These event examples describe the wire format; the decoder limitation noted above
-currently prevents their successful decoding.
+CHAT event 101, recipient session 42, sent by session 5, text `hi`:
+
+```text
+07 01 00 00 00 00 00 2A 05 00 00 00 65 00 00 00 05 00 02 68 69
+```
 
 ## Scope of the current protocol
 

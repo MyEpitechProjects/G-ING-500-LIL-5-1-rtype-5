@@ -28,9 +28,13 @@ void rtype::Server::run() {
     while (_running) {
         removeInactiveClients();
 
+        // packet received :
+
         while (auto packet = _netHandler.popPacket()) {
             handlePacket(packet.value());
         }
+
+        // update instance :
 
         const auto now = std::chrono::steady_clock::now();
         if (now >= nextTick) {
@@ -41,7 +45,9 @@ void rtype::Server::run() {
         }
 
         dispatchOutputs();
-        handlePendingEvents();    
+        handlePendingEvents();
+
+        // wait next tick, define by tick rate :
         _wakeSignal->waitUntil(nextTick);
     }
 }
@@ -128,6 +134,7 @@ void rtype::Server::handlePacket(Net::ListInstancesPacket &packet, Net::udp::end
     _netHandler.send(std::make_unique<Net::InstanceListPacket>(response), sender);
 }
 
+
 void rtype::Server::handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender) {
     auto sessionIt = _sessions.find(sender);
     if (sessionIt == _sessions.end() || sessionIt->second.client_id != packet.header.sessionId)
@@ -150,7 +157,6 @@ void rtype::Server::handlePacket(Net::InputPacket &packet, Net::udp::endpoint se
     if (instanceIt != _instances.end())
         instanceIt->second.setControls(session.client_id, controls);
 }
-
 
 void rtype::Server::handlePacket(Net::EventPacket &packet, Net::udp::endpoint sender) {
     switch (packet.eventType) {
@@ -317,6 +323,15 @@ Net::EventPacket rtype::Server::createEntityEvent(Net::EventType type, std::size
     packet.eventType = type;
     packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
     packet.eventData = std::make_shared<Net::EntityEvent>(static_cast<std::uint32_t>(entityId));
+    _idEventCounter++;
+    return packet;
+}
+
+Net::EventPacket rtype::Server::createChatEvent(std::size_t senderId, const std::string &text) {
+    Net::EventPacket packet;
+    packet.eventType = Net::EventType::CHAT;
+    packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
+    packet.eventData = std::make_shared<Net::ChatEvent>(static_cast<std::uint32_t>(senderId), text);
     _idEventCounter++;
     return packet;
 }

@@ -36,8 +36,21 @@ Collision checks use positions from the current tick. The overlap rule is `abs(d
 
 ## Timing and server integration
 
-`Game::run()` calls `update()` at a target rate of 60 ticks per second using `std::chrono::steady_clock` and `sleep_until`. When an update overruns, the next target is reset to the current time; missed ticks are not replayed. Movement uses integer displacement per tick, while the player shooting cooldown uses elapsed real time.
+On the server, each instance owns one `Game`. The server does not call
+`Game::run()`: its main loop schedules one `Game::update()` per instance and per
+tick on a worker pool, at **20 ticks per second**, and never runs two updates of
+the same game at the same time. When the server is late, missed ticks are not
+replayed. Movement uses integer displacement per tick, so game speed depends on
+the tick rate, while the player shooting cooldown uses elapsed real time.
 
-The server owns a `Game`, a `NetworkHandler`, and a shared `WakeSignal`. It runs the game and Asio networking in separate threads. Its main loop wakes on queued work or after 500 ms, forwards accepted network inputs to `Game::addInputQueue()`, and drains `Game::takeOutputQueue()`. Both queues are protected by mutexes. The game state and registry themselves are updated in the game thread; external code should use the queues rather than access them concurrently. The server currently converts and broadcasts `Snapshot` outputs. Other game outputs, including `PlayerCreated` and `EntityDestroyed`, are queued internally but are not handled separately by the server loop.
+`Game::run()` remains available for standalone use: it calls `update()` at 60
+ticks per second with `std::chrono::steady_clock` and `sleep_until`.
+
+External code talks to a game only through its queues, which are protected by
+mutexes: `Game::addInputQueue()` (`AddPlayer`, `RemovePlayer`, `SetControls`)
+and `Game::takeOutputQueue()` (`Snapshot`, `PlayerCreated`, `EntityDestroyed`).
+The game notifies the `WakeSignal` shared with the server after each update. The
+server converts snapshots into `SNAPSHOT` packets and the other outputs into
+`NEW_CLIENT` and `DESTROY` events; see [Server](server.md).
 
 For game rules and the current player experience, see [Game](game.md). For UDP packet details, see [Network protocol](protocol.md).
