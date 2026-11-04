@@ -9,7 +9,7 @@ NAME = rtype_client
 
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -Werror -fexceptions
-CPPFLAGS = -Iinclude -I../network/include
+CPPFLAGS = -Iinclude -I../network/include -I../engine/include -I../engine/include/components
 
 LDFLAGS = -lsfml-graphics	\
           -lsfml-window	\
@@ -17,15 +17,12 @@ LDFLAGS = -lsfml-graphics	\
           -lcrypto
 
 SRC = src/main.cpp	\
-      src/Graphic.cpp	\
+      src/App.cpp	\
       src/AssetsPak.cpp	\
-      src/objects/Object.cpp	\
       src/Animation.cpp	\
-      src/objects/PlayerObject.cpp	\
-      src/ObjectManager.cpp	\
-      src/objects/ShootLoadingObject.cpp	\
-      src/objects/NetworkObject.cpp	\
-      src/objects/EnemyObject.cpp	\
+      src/Resources.cpp	\
+      src/ClientNet.cpp	\
+      src/ecs/Systems.cpp	\
       ../network/src/WakeSignal.cpp	\
       ../network/src/PacketCodec.cpp	\
       ../network/src/NetworkHandler.cpp	\
