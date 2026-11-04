@@ -10,6 +10,7 @@ theme:
 nav:
   - Home: index.md
   - Build: build.md
+  - Server: server.md
   - Client: client.md
   - Engine: engine.md
   - Game: game.md
