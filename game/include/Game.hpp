@@ -23,11 +23,13 @@ class Game {
         int _playerSpeed;
         double _shotInterval;
         int _enemyInterval;
+        double _tickPeriod;
 
         Engine _engine;
         unsigned int _tick;
         unsigned int _score;
         std::chrono::steady_clock::time_point _lastUpdate;
+        double _lag;
 
         std::vector<rtype::GameInput> _in;
         std::vector<rtype::GameOutput> _out;

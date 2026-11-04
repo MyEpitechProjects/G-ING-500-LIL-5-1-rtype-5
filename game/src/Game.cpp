@@ -19,7 +19,7 @@
 #include <memory>
 #include <utility>
 
-rtype::Game::Game() : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()) {
+rtype::Game::Game() : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tickPeriod(1.0 / 60.0), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()), _lag(0) {
     init();
 }
 
@@ -144,22 +144,22 @@ void rtype::Game::init() {
 }
 
 void rtype::Game::update() {
-    std::chrono::steady_clock::time_point now;
-    double elapsedSeconds = 0;
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-    _tick++;
-    _engine.applySystem(rtype::InputQueueSystem{}, _in, [this](int playerId) { return getEntityFromPlayerId(playerId); }, [this](int playerId) { addPlayer(playerId); }, [this](Entity player) { removePlayer(player); });
-    now = std::chrono::steady_clock::now();
-    elapsedSeconds = std::chrono::duration<double>(now - _lastUpdate).count();
+    _lag += std::chrono::duration<double>(now - _lastUpdate).count();
     _lastUpdate = now;
+    for (; _lag >= _tickPeriod; _lag -= _tickPeriod) {
+        _tick++;
+        _engine.applySystem(rtype::InputQueueSystem{}, _in, [this](int playerId) { return getEntityFromPlayerId(playerId); }, [this](int playerId) { addPlayer(playerId); }, [this](Entity player) { removePlayer(player); });
 
-    _engine.applySystem(rtype::CooldownSystem{}, elapsedSeconds);
-    _engine.applySystem(rtype::ControlSystem{}, _playerSpeed);
-    _engine.applySystem(rtype::ShotSystem{}, _shotInterval, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
-    _engine.applySystem(rtype::EnemySystem{}, _tick, _enemyInterval, _height, [this](int y) { spawnEnemy(y); }, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
+        _engine.applySystem(rtype::CooldownSystem{}, _tickPeriod);
+        _engine.applySystem(rtype::ControlSystem{}, _playerSpeed);
+        _engine.applySystem(rtype::ShotSystem{}, _shotInterval, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
+        _engine.applySystem(rtype::EnemySystem{}, _tick, _enemyInterval, _height, [this](int y) { spawnEnemy(y); }, [this](int x, int y, bool fromPlayer) { spawnProjectile(x, y, fromPlayer); });
 
-    _engine.update(elapsedSeconds);
+        _engine.update(_tickPeriod);
 
-    _engine.applySystem(rtype::BoundsSystem{}, _width, _height);
-    _engine.applySystem(rtype::SnapshotSystem{}, _engine.getEntities(), _tick, _score, _out);
+        _engine.applySystem(rtype::BoundsSystem{}, _width, _height);
+        _engine.applySystem(rtype::SnapshotSystem{}, _engine.getEntities(), _tick, _score, _out);
+    }
 }
