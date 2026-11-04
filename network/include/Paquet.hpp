@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "IEvent.hpp"
@@ -21,6 +22,8 @@ namespace Net {
     constexpr std::uint32_t NO_INSTANCE = 0;
     constexpr std::size_t EVENT_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 5;
     constexpr std::size_t ENTITY_EVENT_WIRE_SIZE = 4;
+    constexpr std::size_t CHAT_EVENT_BASE_WIRE_SIZE = 6;
+    constexpr std::size_t MAX_CHAT_LENGTH = 256;
 
     enum PacketType : std::uint8_t {
         INPUT = 1,
@@ -37,6 +40,7 @@ namespace Net {
         DESTROY = 2,
         ACK = 3,
         DISCONNECTED = 4,
+        CHAT = 5,
     };
 
     enum InputButton : std::uint16_t {
@@ -177,6 +181,17 @@ namespace Net {
         ~EntityEvent() override = default;
 
         std::uint32_t entityId = 0;
+
+        void serialize(std::vector<std::uint8_t> &out) const override;
+    };
+
+    struct ChatEvent : IEvent {
+        ChatEvent() = default;
+        ChatEvent(std::uint32_t sender, std::string message);
+        ~ChatEvent() override = default;
+
+        std::uint32_t senderId = 0;
+        std::string text;
 
         void serialize(std::vector<std::uint8_t> &out) const override;
     };

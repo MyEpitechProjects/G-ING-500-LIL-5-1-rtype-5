@@ -109,13 +109,14 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
             if (size < EVENT_BASE_WIRE_SIZE)
                 return nullptr;
             const EventType eventType = static_cast<EventType>(data[HEADER_WIRE_SIZE]);
-            const std::optional<std::size_t> payloadSize = eventPayloadSize(eventType);
-            if (!payloadSize || size != EVENT_BASE_WIRE_SIZE + payloadSize.value())
+            std::shared_ptr<const IEvent> eventData = deserializeEvent(eventType,
+                data + EVENT_BASE_WIRE_SIZE, size - EVENT_BASE_WIRE_SIZE);
+            if (!eventData)
                 return nullptr;
             std::unique_ptr<EventPacket> packet = std::make_unique<EventPacket>(header);
             packet->eventType = eventType;
             packet->eventId = readU32(data + HEADER_WIRE_SIZE + 1);
-            packet->eventData = deserializeEvent(eventType, data + EVENT_BASE_WIRE_SIZE);
+            packet->eventData = std::move(eventData);
             return packet;
         }
         default:
@@ -123,27 +124,44 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
     }
 }
 
-std::optional<std::size_t> Net::PacketCodec::eventPayloadSize(EventType type) {
+bool Net::PacketCodec::validEventData(EventType type, const IEvent &event) {
     switch (type) {
         case EventType::ACK:
-            return 0;
+            return dynamic_cast<const EmptyEvent*>(&event) != nullptr;
         case EventType::NEW_CLIENT:
         case EventType::DESTROY:
         case EventType::DISCONNECTED:
-            return ENTITY_EVENT_WIRE_SIZE;
+            return dynamic_cast<const EntityEvent*>(&event) != nullptr;
+        case EventType::CHAT: {
+            const auto* chat = dynamic_cast<const ChatEvent*>(&event);
+            return chat != nullptr && chat->text.size() <= MAX_CHAT_LENGTH;
+        }
         default:
-            return std::nullopt;
+            return false;
     }
 }
 
-std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data) {
+std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {
     switch (type) {
         case EventType::ACK:
+            if (size != 0)
+                return nullptr;
             return std::make_shared<EmptyEvent>();
         case EventType::NEW_CLIENT:
         case EventType::DESTROY:
         case EventType::DISCONNECTED:
+            if (size != ENTITY_EVENT_WIRE_SIZE)
+                return nullptr;
             return std::make_shared<EntityEvent>(readU32(data));
+        case EventType::CHAT: {
+            if (size < CHAT_EVENT_BASE_WIRE_SIZE)
+                return nullptr;
+            const std::uint16_t length = readU16(data + 4);
+            if (length > MAX_CHAT_LENGTH || size != CHAT_EVENT_BASE_WIRE_SIZE + length)
+                return nullptr;
+            const auto* text = reinterpret_cast<const char*>(data + CHAT_EVENT_BASE_WIRE_SIZE);
+            return std::make_shared<ChatEvent>(readU32(data), std::string(text, length));
+        }
         default:
             return nullptr;
     }

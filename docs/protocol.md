@@ -107,7 +107,7 @@ base, then a payload whose layout depends on `eventType`.
 | --- | --- | --- | --- |
 | 8 | 1 | `eventType` | Event subtype from the table below |
 | 9 | 4 | `eventId` | Identifier used to acknowledge the event |
-| 13 | n | `eventData` | Payload, its size `n` is fixed by `eventType` |
+| 13 | n | `eventData` | Payload, its layout and size `n` depend on `eventType` |
 
 | Value | Name | Payload (`eventData`) | Purpose |
 | --- | --- | --- | --- |
@@ -115,17 +115,36 @@ base, then a payload whose layout depends on `eventType`.
 | `2` | `DESTROY` | `EntityEvent` (4 bytes: `entityId`) | Broadcast when the game destroys an entity |
 | `3` | `ACK` | `EmptyEvent` (0 bytes) | Client acknowledgement of the event identified by `eventId` |
 | `4` | `DISCONNECTED` | `EntityEvent` (4 bytes: `entityId`) | Broadcast when a session times out |
+| `5` | `CHAT` | `ChatEvent` (6 + `length` bytes) | Text message sent to every player of the sender's instance |
 
 A packet whose size does not match `13 + n` for its `eventType`, or whose
 `eventType` is unknown, is rejected. Serializing an `EventPacket` whose payload
 does not match its `eventType` throws `std::invalid_argument`.
 
+#### CHAT payload (`ChatEvent`)
+
+| Offset in payload | Size | Field | Description |
+| --- | --- | --- | --- |
+| 0 | 4 | `senderId` | Session identifier of the player who wrote the message |
+| 4 | 2 | `length` | Text length in bytes, at most `MAX_CHAT_LENGTH` (256) |
+| 6 | `length` | `text` | Raw text bytes (UTF-8), no terminating null byte |
+
+The client sends a `CHAT` event to the server with its own `header.sessionId`;
+the server ignores the client's `senderId` and `eventId`. If the sender belongs
+to an instance and the text is not empty, the server broadcasts a new `CHAT`
+event, with its own `eventId` and `senderId` set to the sender's session
+identifier, to every session of that instance, sender included. This broadcast
+is acknowledged and retried like any other event, so clients must deduplicate
+chat messages by `eventId`. The client-to-server message itself is not
+acknowledged. A `length` above 256 or a size other than `13 + 6 + length` is
+rejected.
+
 The default subtype is `ACK` with an `EmptyEvent` payload, and `eventId`
 defaults to `0`. `eventId` is independent of the common header's `sequence` field.
 
 To add an event: add the `EventType` value, a payload struct implementing
-`Net::IEvent`, and its case in `PacketCodec::eventPayloadSize` and
-`PacketCodec::deserializeEvent`.
+`Net::IEvent`, and its case in `PacketCodec::validEventData` and
+`PacketCodec::deserializeEvent` (which checks the payload size).
 
 #### Broadcast, acknowledgements and retries
 
@@ -167,8 +186,8 @@ The `serialize() const` methods return the packet bytes. They throw
 if the buttons are invalid, or if the snapshot contains too many entities or an
 invalid entity. An invalid entity is not skipped: snapshot serialization fails.
 
-For `EVENT`, the decoder checks for exactly 17 bytes. The intended subtype check
-accepts only the four values listed above.
+For `EVENT`, the decoder rejects unknown subtypes and payloads whose size does
+not match the subtype (see the EVENT section).
 
 ## Hexadecimal examples
 

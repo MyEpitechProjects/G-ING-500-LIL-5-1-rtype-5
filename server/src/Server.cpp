@@ -62,9 +62,7 @@ void rtype::Server::handlePacket(Net::IncomingPacket<Net::PacketCodec::Packet> &
     } else if (auto packet = dynamic_cast<Net::InputPacket*>(incomingPacket.packet.get())) {
         handlePacket(*packet, incomingPacket.sender);
     } else if (auto packet = dynamic_cast<Net::EventPacket*>(incomingPacket.packet.get())) {
-        if (packet->eventType == Net::EventType::ACK) {
-            erasePendingEvent(incomingPacket.sender, packet->eventId, packet->header.sessionId);
-        }
+        handlePacket(*packet, incomingPacket.sender);
     }
     if (_sessions.find(incomingPacket.sender) != _sessions.end())
         _sessions.at(incomingPacket.sender).lastSeen = std::chrono::steady_clock::now();
@@ -127,6 +125,32 @@ void rtype::Server::handlePacket(Net::InputPacket &packet, Net::udp::endpoint se
     auto instanceIt = _instances.find(static_cast<std::uint32_t>(session.instance_id));
     if (instanceIt != _instances.end())
         instanceIt->second.setControls(session.client_id, controls);
+}
+
+void rtype::Server::handlePacket(Net::EventPacket &packet, Net::udp::endpoint sender) {
+    switch (packet.eventType) {
+        case Net::EventType::ACK:
+            erasePendingEvent(sender, packet.eventId, packet.header.sessionId);
+            break;
+        case Net::EventType::CHAT:
+            if (auto chat = dynamic_cast<const Net::ChatEvent*>(packet.eventData.get()))
+                handleChat(*chat, sender, packet.header.sessionId);
+            break;
+        default:
+            break;
+    }
+}
+
+void rtype::Server::handleChat(const Net::ChatEvent &chat, Net::udp::endpoint sender, std::uint32_t sessionId) {
+    auto sessionIt = _sessions.find(sender);
+    if (sessionIt == _sessions.end() || sessionIt->second.client_id != sessionId)
+        return;
+
+    const Session &session = sessionIt->second;
+    if (session.instance_id == Net::NO_INSTANCE || chat.text.empty())
+        return;
+
+    broadcastEvent(static_cast<std::uint32_t>(session.instance_id), createChatEvent(session.client_id, chat.text));
 }
 
 bool rtype::Server::joinInstance(Session &session, std::uint32_t instanceId) {
@@ -252,6 +276,15 @@ Net::EventPacket rtype::Server::createEntityEvent(Net::EventType type, std::size
     packet.eventType = type;
     packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
     packet.eventData = std::make_shared<Net::EntityEvent>(static_cast<std::uint32_t>(entityId));
+    _idEventCounter++;
+    return packet;
+}
+
+Net::EventPacket rtype::Server::createChatEvent(std::size_t senderId, const std::string &text) {
+    Net::EventPacket packet;
+    packet.eventType = Net::EventType::CHAT;
+    packet.eventId = static_cast<std::uint32_t>(_idEventCounter);
+    packet.eventData = std::make_shared<Net::ChatEvent>(static_cast<std::uint32_t>(senderId), text);
     _idEventCounter++;
     return packet;
 }
