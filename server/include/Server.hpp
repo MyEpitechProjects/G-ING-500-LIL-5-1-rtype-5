@@ -21,7 +21,7 @@ namespace rtype {
         private:
             bool _running = true;
             std::shared_ptr<WakeSignal> _wakeSignal;
-            std::chrono::_V2::steady_clock::duration _tickPeriod;
+            std::chrono::steady_clock::duration _tickPeriod;
 
             Net::NetworkHandler _netHandler;
             std::thread _netThread;
