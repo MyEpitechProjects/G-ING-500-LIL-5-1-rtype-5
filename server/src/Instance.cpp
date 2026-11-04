@@ -2,7 +2,7 @@
 
 #include <iterator>
 
-Instance::Instance(std::uint32_t id) : _id(id), _game() {
+Instance::Instance(std::uint32_t id, float tickRate) : _id(id), _game(tickRate) {
 }
 
 std::uint32_t Instance::getId() const {

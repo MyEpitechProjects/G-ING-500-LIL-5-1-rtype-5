@@ -2,6 +2,7 @@
 #include <algorithm>
 
 rtype::Server::Server(int port, std::size_t tickRate) : _wakeSignal(std::make_shared<WakeSignal>()), _netHandler(port, _wakeSignal), _pool(std::thread::hardware_concurrency()), _idCounterSession(0), _idEventCounter(0), _idInstanceCounter(1) {
+    _tickRate = static_cast<float>(tickRate);
     _tickPeriod = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
         std::chrono::duration<double>(1.0 / tickRate)
     );
@@ -218,7 +219,7 @@ std::uint32_t rtype::Server::createInstance() {
     const std::uint32_t instanceId = static_cast<std::uint32_t>(_idInstanceCounter);
     {
         std::lock_guard<std::mutex> lock(_instancesMutex);
-        _instances.try_emplace(instanceId, instanceId);
+        _instances.try_emplace(instanceId, instanceId, _tickRate);
     }
     _idInstanceCounter++;
 

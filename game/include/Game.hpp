@@ -44,7 +44,7 @@ class Game {
         void applyShot(Entity shot, Entity target);
 
     public:
-        Game();
+        Game(float tickRate);
         ~Game() = default;
 
         Registry &getRegistry() { return _engine.getRegistry(); }

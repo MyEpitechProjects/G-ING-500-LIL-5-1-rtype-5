@@ -19,7 +19,7 @@
 #include <memory>
 #include <utility>
 
-rtype::Game::Game() : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tickPeriod(1.0 / 60.0), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()), _lag(0) {
+rtype::Game::Game(float tickRate) : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tickPeriod(1.0 / tickRate), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()), _lag(0) {
     init();
 }
 
@@ -160,6 +160,6 @@ void rtype::Game::update() {
         _engine.update(_tickPeriod);
 
         _engine.applySystem(rtype::BoundsSystem{}, _width, _height);
-        _engine.applySystem(rtype::SnapshotSystem{}, _engine.getEntities(), _tick, _score, _out);
     }
+    _engine.applySystem(rtype::SnapshotSystem{}, _engine.getEntities(), _tick, _score, _out);
 }

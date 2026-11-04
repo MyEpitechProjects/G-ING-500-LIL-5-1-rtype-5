@@ -25,7 +25,7 @@ namespace Net {
     constexpr std::size_t INSTANCE_LIST_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 2;
     constexpr std::size_t INSTANCE_INFO_WIRE_SIZE = 6;
     constexpr std::size_t MAX_LISTED_INSTANCES = (MAX_DATAGRAM_SIZE - INSTANCE_LIST_BASE_WIRE_SIZE) / INSTANCE_INFO_WIRE_SIZE;
-    constexpr std::size_t SERVER_TICK_RATE = 20;
+    constexpr std::size_t SERVER_TICK_RATE = 60;
     constexpr std::size_t CHAT_EVENT_BASE_WIRE_SIZE = 6;
     constexpr std::size_t MAX_CHAT_LENGTH = 256;
 

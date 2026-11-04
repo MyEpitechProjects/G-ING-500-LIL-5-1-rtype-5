@@ -24,7 +24,7 @@ class Instance {
         void queueInput(const rtype::GameInput &input);
 
     public:
-        Instance(std::uint32_t id);
+        Instance(std::uint32_t id, float tickRate);
         ~Instance() = default;
 
         std::uint32_t getId() const;
