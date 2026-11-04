@@ -91,6 +91,20 @@ target_link_libraries(rtype_game PUBLIC
     rtype_network
 )
 
+add_executable(catch_demo
+    examples/catch/src/main.cpp
+    examples/catch/src/Catch.cpp
+)
+
+target_include_directories(catch_demo PRIVATE
+    examples/catch/include
+)
+
+target_link_libraries(catch_demo PRIVATE
+    rtype_engine_physics
+    rtype_engine_render
+)
+
 add_executable(rtype_server
     server/src/main.cpp
     server/src/Server.cpp
@@ -155,7 +169,7 @@ target_link_libraries(rtype_client PRIVATE
 add_dependencies(rtype_client rtype_client_assets)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    foreach(target rtype_network rtype_engine rtype_game rtype_server)
+    foreach(target rtype_network rtype_engine rtype_engine_physics rtype_engine_render rtype_game rtype_server catch_demo)
         target_compile_options(${target} PRIVATE
             -Wall -Wextra -Werror
         )
