@@ -37,6 +37,7 @@ add_library(rtype_engine STATIC
 
 target_include_directories(rtype_engine PUBLIC
     engine/include
+    engine/include/modules
     engine/include/components
     engine/include/modules
 )
@@ -80,6 +81,9 @@ target_include_directories(rtype_game PUBLIC
     game/include
     game/include/components
     game/include/messages
+    engine/include
+    engine/include/modules
+    engine/include/components
 )
 
 target_link_libraries(rtype_game PUBLIC

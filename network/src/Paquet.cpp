@@ -1,6 +1,7 @@
 #include "Paquet.hpp"
 #include "PacketCodec.hpp"
 #include <cstring>
+#include <utility>
 
 std::vector<std::uint8_t> Net::InputPacket::serialize() const {
     if ((buttons & BUTTON_MASK) != buttons)
@@ -70,18 +71,16 @@ std::vector<std::uint8_t> Net::InstancePacket::serialize() const {
 }
 
 std::vector<std::uint8_t> Net::EventPacket::serialize() const {
-    const std::optional<std::size_t> payloadSize = PacketCodec::eventPayloadSize(eventType);
-    if (!payloadSize || !eventData)
-        throw std::invalid_argument("Invalid event type");
-    const std::size_t expectedSize = EVENT_BASE_WIRE_SIZE + payloadSize.value();
+    if (!eventData || !PacketCodec::validEventData(eventType, *eventData))
+        throw std::invalid_argument("Event data does not match event type");
     std::vector<std::uint8_t> out;
-    out.reserve(expectedSize);
+    out.reserve(EVENT_BASE_WIRE_SIZE);
     PacketCodec::writeHeader(out, header, PacketType::EVENT);
     out.push_back(static_cast<std::uint8_t>(eventType));
     PacketCodec::writeU32(out, eventId);
     eventData->serialize(out);
-    if (out.size() != expectedSize)
-        throw std::invalid_argument("Event data does not match event type");
+    if (out.size() > MAX_DATAGRAM_SIZE)
+        throw std::invalid_argument("Event packet too large");
     return out;
 }
 
@@ -93,4 +92,15 @@ Net::EntityEvent::EntityEvent(std::uint32_t id) : entityId(id) {
 
 void Net::EntityEvent::serialize(std::vector<std::uint8_t> &out) const {
     PacketCodec::writeU32(out, entityId);
+}
+
+Net::ChatEvent::ChatEvent(std::uint32_t sender, std::string message) : senderId(sender), text(std::move(message)) {
+}
+
+void Net::ChatEvent::serialize(std::vector<std::uint8_t> &out) const {
+    if (text.size() > MAX_CHAT_LENGTH)
+        throw std::invalid_argument("Chat message too long");
+    PacketCodec::writeU32(out, senderId);
+    PacketCodec::writeU16(out, static_cast<std::uint16_t>(text.size()));
+    out.insert(out.end(), text.begin(), text.end());
 }

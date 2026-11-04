@@ -11,6 +11,7 @@
     #include <queue>
     #include <memory>
     #include <ranges>
+    #include <string>
     #include <tuple>
     #include <utility>
     #include <vector>
@@ -42,6 +43,8 @@ namespace rtype {
             void handlePacket(Net::CreateInstancePacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::InstancePacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender);
+            void handlePacket(Net::EventPacket &packet, Net::udp::endpoint sender);
+            void handleChat(const Net::ChatEvent &chat, Net::udp::endpoint sender, std::uint32_t sessionId);
 
             //----------------------------------------------------------------------------------//
 
@@ -63,6 +66,7 @@ namespace rtype {
 
             void insertPendingEvent(std::size_t client_id, PendingEvent event, std::uint32_t event_id);
             Net::EventPacket createEntityEvent(Net::EventType type, std::size_t entityId);
+            Net::EventPacket createChatEvent(std::size_t senderId, const std::string &text);
             void broadcastEvent(std::uint32_t instanceId, Net::EventPacket outPacket);
             void erasePendingEvent(asio::ip::udp::endpoint sender, std::uint32_t event_id, std::size_t sessionId);
 

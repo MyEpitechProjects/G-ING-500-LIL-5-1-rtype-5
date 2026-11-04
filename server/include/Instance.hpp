@@ -17,7 +17,7 @@ class Instance {
         std::atomic<bool> _updating = false;
 
     public:
-        Instance(std::shared_ptr<WakeSignal> wakeSignal, std::uint32_t id);
+        Instance(std::uint32_t id);
         ~Instance() = default;
 
         std::uint32_t getId() const;

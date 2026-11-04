@@ -68,7 +68,7 @@ A received item provides:
 ```cpp
 Net::IncomingPacket<Net::PacketCodec::Packet>
 // .sender : asio::ip::udp::endpoint (source IP and port)
-// .packet : std::unique_ptr<IPacket>
+// .packet : std::shared_ptr<IPacket> (Net::PacketCodec::Packet)
 ```
 
 ## 3. Client integration
@@ -112,7 +112,6 @@ Declare this state before the rendering loop:
 ```cpp
 bool welcomed = false;
 std::uint32_t sessionId = 0;
-std::uint32_t playerEntityId = 0;
 ```
 
 Every frame, drain the queue without blocking rendering:
@@ -123,8 +122,7 @@ while (auto incoming = network.popPacket()) {
         continue;
 
     if (auto* welcome = dynamic_cast<Net::WelcomePacket*>(incoming->packet.get())) {
-        sessionId = welcome->header.sessionId;
-        playerEntityId = welcome->playerEntityId;
+        sessionId = welcome->clientId;
         welcomed = true;
     } else if (auto* snapshot = dynamic_cast<Net::SnapshotPacket*>(incoming->packet.get())) {
         for (const auto& entity : snapshot->entities) {
@@ -156,7 +154,12 @@ if (welcomed) {
 bool up = (inputPacket.buttons & Net::InputButton::UP) != 0;
 ```
 
-`|` combines buttons; `&` checks whether they are set. The current protocol only accepts `UP`, `DOWN`, `LEFT`, `RIGHT`: no shooting bit is defined.
+`|` combines buttons; `&` checks whether they are set. The protocol accepts `UP`, `DOWN`, `LEFT`, `RIGHT` and `FIRE`.
+
+The server only applies inputs from clients that are in an instance. After
+WELCOME, send `CreateInstancePacket` to create a game, or an `InstancePacket`
+with an `instanceId` to join one; the server answers with an `InstancePacket`
+(`instanceId == Net::NO_INSTANCE` on failure). See [Server](server.md).
 
 ### Shut down the client
 
@@ -209,9 +212,7 @@ void runNetworkServer(std::atomic<bool>& running,
                         ++nextId;
                     auto welcome = std::make_unique<Net::WelcomePacket>();
                     welcome->header.sessionId = it->second;
-                    // This example uses the same identifier for the session and player.
-                    // When integrating the game, use the identifier of the entity actually created.
-                    welcome->playerEntityId = it->second;
+                    welcome->clientId = it->second;
                     network.send(std::move(welcome), incoming->sender);
                 } else if (auto* input = dynamic_cast<Net::InputPacket*>(incoming->packet.get())) {
                     auto it = sessions.find(incoming->sender);
@@ -247,14 +248,12 @@ snapshot.entities.push_back(Net::EntityState{
     1, Net::EntityKind::PLAYER, 100.0f, 200.0f, 100, Net::EntityFlag::ALIVE
 });
 
-for (const auto& [endpoint, sessionId] : sessions) {
-    auto packet = std::make_unique<Net::SnapshotPacket>(snapshot);
-    packet->header.sessionId = sessionId;
-    network.send(std::move(packet), endpoint);
-}
+auto packet = std::make_shared<Net::SnapshotPacket>(snapshot);
+for (const auto& [endpoint, sessionId] : sessions)
+    network.send(packet, endpoint);
 ```
 
-A `unique_ptr` cannot be copied. After `send(std::move(packet), ...)`, it is null: do not reuse it for another client. Never pass a null packet to `send()`: the current implementation dereferences it without checking during serialization.
+`Net::PacketCodec::Packet` is a `std::shared_ptr<IPacket>`, so the same packet can be sent to several recipients. Create a separate packet per recipient when a field differs, such as `header.sessionId`.
 
 ## 5. Using WakeSignal correctly
 
@@ -282,9 +281,12 @@ The codec handles serialization: there is no need to construct bytes manually wh
 | Packet | Usual direction | Data |
 | --- | --- | --- |
 | `HelloPacket` | Client → server | Header only |
-| `WelcomePacket` | Server → client | Header and `playerEntityId` |
+| `WelcomePacket` | Server → client | Header and `clientId` (session identifier) |
+| `CreateInstancePacket` | Client → server | Header only |
+| `InstancePacket` | Both directions | Header and `instanceId` |
 | `InputPacket` | Client → server | Header and `buttons` bitmask |
 | `SnapshotPacket` | Server → client | Header, `serverTick`, `entities` list |
+| `EventPacket` | Both directions | Header, `eventType`, `eventId`, `eventData` (`IEvent`) |
 
 Each header contains `type`, `version`, `sequence` and `sessionId`. The default constructors of concrete packets initialize the correct type and version. If you provide a `PacketHeader` yourself, explicitly initialize its `type`.
 
@@ -292,7 +294,7 @@ Each header contains `type`, `version`, `sequence` and `sessionId`. The default 
 
 The format uses multibyte integers in network byte order (big-endian). Positions are encoded as 32-bit floating-point values. The limit is **1,200 bytes per packet**, or **74 entities per snapshot** (14 base bytes and 16 per entity). The codec does not split larger snapshots or reassemble them.
 
-Decoding rejects incorrect sizes, unknown versions/types, unsupported buttons, unknown entity types and non-finite positions. In these cases, `deserialize()` returns `nullptr`; the handler prints `invalid packet` and continues receiving.
+Decoding rejects incorrect sizes, unknown versions/types, unsupported buttons, unknown entity types, unknown event subtypes and non-finite positions. In these cases, `deserialize()` returns `nullptr`; the handler prints `invalid packet` and continues receiving.
 
 Serialization may throw `std::invalid_argument` for invalid data. It runs in the thread executing `run()`, not necessarily the one calling `send()`: wrap `run()` in a `try/catch` block.
 
@@ -300,7 +302,7 @@ See also the [protocol documentation](protocol.md); the definitions used by the 
 
 ## 7. Current state and integration considerations
 
-The module is a UDP transport: it provides no delivery or ordering guarantees, duplicate prevention, reconnection, session timeout, encryption or authentication. `send()` does not confirm receipt by the recipient.
+The module is a UDP transport: it provides no delivery or ordering guarantees, duplicate prevention, reconnection, session timeout, encryption or authentication. Event acknowledgements, retries and session timeouts are implemented by the server (see [Server](server.md)). `send()` does not confirm receipt by the recipient.
 
 The current version stores outgoing bytes in a `shared_ptr` captured by the Asio callback: their memory remains valid until the operation completes. Preserve this lifetime if you modify the transport.
 
@@ -311,5 +313,5 @@ The current version stores outgoing bytes in a `shared_ptr` captured by the Asio
 3. Check that HELLO and WELCOME are received and verify the exchanged identifiers.
 4. Send INPUT and check the direction bitmask on the server.
 5. Send a snapshot with one entity and check its values on the client.
-6. Connect a second client to check broadcasting without reusing a moved-from `unique_ptr`.
+6. Connect a second client to the same instance and check that both receive the snapshots.
 7. Shut down with no network traffic to check that waiting threads are woken and threads are joined.
