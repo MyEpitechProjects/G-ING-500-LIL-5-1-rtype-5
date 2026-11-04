@@ -11,18 +11,28 @@
     #include "AModule.hpp"
     #include "Position.hpp"
     #include "Registry.hpp"
+    #include "Shape.hpp"
     #include "Sprite.hpp"
     #include <SFML/Graphics.hpp>
     #include <exception>
+    #include <functional>
     #include <string>
-    #include <unordered_map>
 
 class RenderModule : public AModule {
     private:
         sf::RenderWindow _window;
         std::unordered_map<std::string, sf::Texture> _textures;
+        std::function<void(const sf::Event &)> _onEvent;
+
+        struct Drawable {
+            int layer;
+            const Position *position;
+            const Sprite *sprite;
+            const Shape *shape;
+        };
 
         void draw(const Position &position, const Sprite &sprite);
+        void draw(const Position &position, const Shape &shape);
 
     public:
         RenderModule(unsigned int width, unsigned int height, const std::string &title);
@@ -30,6 +40,7 @@ class RenderModule : public AModule {
 
         bool isOpen() const { return _window.isOpen(); }
         void loadTexture(const std::string &name, const std::string &path);
+        void onEvent(std::function<void(const sf::Event &)> callback) { _onEvent = std::move(callback); }
 
         void registerComponents(Registry &registry) override;
         void update(Registry &registry, double elapsedSeconds) override;
