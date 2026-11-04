@@ -10,6 +10,7 @@
     #include <variant>
     #include <mutex>
     #include <optional>
+    #include <chrono>
 
     #include "WakeSignal.hpp"
     #include "Paquet.hpp"
@@ -29,6 +30,7 @@ namespace Net {
     struct IncomingPacket {
         udp::endpoint sender;
         Packet packet;
+        std::chrono::steady_clock::time_point receivedAt{};
     };
 
     class NetworkHandler {

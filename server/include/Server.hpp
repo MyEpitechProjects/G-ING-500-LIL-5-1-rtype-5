@@ -6,7 +6,7 @@
     #include "WakeSignal.hpp"
     #include "Instance.hpp"
     #include "ThreadPool.hpp"
-
+    #include <string>
     #include <thread>
     #include <queue>
     #include <memory>
@@ -21,7 +21,7 @@ namespace rtype {
         private:
             bool _running = true;
             std::shared_ptr<WakeSignal> _wakeSignal;
-            std::chrono::steady_clock::duration _tickPeriod;
+            std::chrono::_V2::steady_clock::duration _tickPeriod;
 
             Net::NetworkHandler _netHandler;
             std::thread _netThread;
@@ -42,11 +42,10 @@ namespace rtype {
             void handlePacket(Net::HelloPacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::CreateInstancePacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::InstancePacket &packet, Net::udp::endpoint sender);
+            void handlePacket(Net::ListInstancesPacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::InputPacket &packet, Net::udp::endpoint sender);
             void handlePacket(Net::EventPacket &packet, Net::udp::endpoint sender);
             void handleChat(const Net::ChatEvent &chat, Net::udp::endpoint sender, std::uint32_t sessionId);
-
-            //----------------------------------------------------------------------------------//
 
             Session &createSession(asio::ip::udp::endpoint endpoint);
             std::uint32_t createInstance();

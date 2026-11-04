@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 
 #include "IEvent.hpp"
 #include "IPacket.hpp"
@@ -22,6 +22,10 @@ namespace Net {
     constexpr std::uint32_t NO_INSTANCE = 0;
     constexpr std::size_t EVENT_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 5;
     constexpr std::size_t ENTITY_EVENT_WIRE_SIZE = 4;
+    constexpr std::size_t INSTANCE_LIST_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 2;
+    constexpr std::size_t INSTANCE_INFO_WIRE_SIZE = 6;
+    constexpr std::size_t MAX_LISTED_INSTANCES = (MAX_DATAGRAM_SIZE - INSTANCE_LIST_BASE_WIRE_SIZE) / INSTANCE_INFO_WIRE_SIZE;
+    constexpr std::size_t SERVER_TICK_RATE = 20;
     constexpr std::size_t CHAT_EVENT_BASE_WIRE_SIZE = 6;
     constexpr std::size_t MAX_CHAT_LENGTH = 256;
 
@@ -33,6 +37,8 @@ namespace Net {
         CREATE_INSTANCE = 5,
         INSTANCE = 6,
         EVENT = 7,
+        LIST_INSTANCES = 8,
+        INSTANCE_LIST = 9,
     };
 
     enum EventType : std::uint8_t {
@@ -41,6 +47,7 @@ namespace Net {
         ACK = 3,
         DISCONNECTED = 4,
         CHAT = 5,
+        YOUR_ENTITY = 6,
     };
 
     enum InputButton : std::uint16_t {
@@ -83,6 +90,7 @@ namespace Net {
 
         std::vector<std::uint8_t> serialize() const override;
     };
+    constexpr std::size_t INSTANCE_LIST_BASE_WIRE_SIZE = HEADER_WIRE_SIZE + 2;
 
     /*
     ** SNAPSHOT PACKET
@@ -163,6 +171,36 @@ namespace Net {
         std::vector<std::uint8_t> serialize() const override;
     };
 
+
+    /*
+    ** INSTANCE LIST PACKETS
+    */
+
+    struct ListInstancesPacket : IPacket {
+        ListInstancesPacket() = default;
+        ListInstancesPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~ListInstancesPacket() override = default;
+
+        PacketHeader header{PacketType::LIST_INSTANCES};
+
+        std::vector<std::uint8_t> serialize() const override;
+    };
+
+    struct InstanceInfo {
+        std::uint32_t id = NO_INSTANCE;
+        std::uint16_t players = 0;
+    };
+
+    struct InstanceListPacket : IPacket {
+        InstanceListPacket() = default;
+        InstanceListPacket(PacketHeader header_packet) : header(header_packet) {}
+        ~InstanceListPacket() override = default;
+
+        PacketHeader header{PacketType::INSTANCE_LIST};
+        std::vector<InstanceInfo> instances;
+
+        std::vector<std::uint8_t> serialize() const override;
+    };
 
     /*
     ** EVENT DATA

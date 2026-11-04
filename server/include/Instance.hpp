@@ -13,11 +13,12 @@
 class Instance {
     private:
         std::uint32_t _id;
+        std::shared_ptr<WakeSignal> _wakeSignal;
         rtype::Game _game;
         std::atomic<bool> _updating = false;
 
     public:
-        Instance(std::uint32_t id);
+        Instance(std::shared_ptr<WakeSignal> wakeSignal, std::uint32_t id);
         ~Instance() = default;
 
         std::uint32_t getId() const;

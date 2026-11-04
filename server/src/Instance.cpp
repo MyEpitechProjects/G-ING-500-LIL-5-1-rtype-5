@@ -1,6 +1,6 @@
 #include "Instance.hpp"
 
-Instance::Instance(std::uint32_t id) : _id(id), _game() {
+Instance::Instance(std::shared_ptr<WakeSignal> wakeSignal, std::uint32_t id) : _id(id), _wakeSignal(std::move(wakeSignal)) {
 }
 
 std::uint32_t Instance::getId() const {
@@ -30,4 +30,6 @@ bool Instance::tryStartUpdate() {
 void Instance::update() {
     _game.update();
     _updating = false;
+    if (_wakeSignal)
+        _wakeSignal->notify();
 }
