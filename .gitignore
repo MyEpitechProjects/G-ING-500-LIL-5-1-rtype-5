@@ -3,7 +3,8 @@ rtype_server
 a.out
 client_test.cpp
 .vscode
-build
+build*
 /.venv/
 /site/
 test/
+CMakeUserPresets.json

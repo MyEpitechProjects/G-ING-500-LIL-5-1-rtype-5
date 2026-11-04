@@ -28,32 +28,66 @@ target_link_libraries(rtype_network PUBLIC
     Threads::Threads
 )
 
-file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/*.cpp"
+add_library(rtype_engine STATIC
+    engine/src/systems/CollisionSystem.cpp
+    engine/src/systems/GravitySystem.cpp
+    engine/src/systems/OutOfBoundsSystem.cpp
+    engine/src/systems/PositionSystem.cpp
 )
-
-add_library(rtype_engine STATIC ${ENGINE_SOURCES})
 
 target_include_directories(rtype_engine PUBLIC
     engine/include
-    engine/include/components
     engine/include/modules
+    engine/include/components
 )
 
-file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.cpp"
+add_library(rtype_engine_physics STATIC
+    engine/src/modules/PhysicsModule.cpp
 )
 
-add_library(rtype_game STATIC ${GAME_SOURCES})
+target_link_libraries(rtype_engine_physics PUBLIC
+    rtype_engine
+)
+
+add_library(rtype_engine_render STATIC
+    engine/src/modules/RenderModule.cpp
+)
+
+target_link_libraries(rtype_engine_render PUBLIC
+    rtype_engine
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+)
+
+add_library(rtype_game STATIC
+    game/src/Game.cpp
+    game/src/systems/BoundsSystem.cpp
+    game/src/systems/ControlAssignmentSystem.cpp
+    game/src/systems/ControlSystem.cpp
+    game/src/systems/CooldownSystem.cpp
+    game/src/systems/EnemySpawnSystem.cpp
+    game/src/systems/EnemySystem.cpp
+    game/src/systems/InputQueueSystem.cpp
+    game/src/systems/PlayerRemovalSystem.cpp
+    game/src/systems/PlayerSpawnSystem.cpp
+    game/src/systems/ProjectileSpawnSystem.cpp
+    game/src/systems/ShotSystem.cpp
+    game/src/systems/SnapshotSystem.cpp
+)
 
 target_include_directories(rtype_game PUBLIC
     game/include
     game/include/components
     game/include/messages
+    engine/include
+    engine/include/modules
+    engine/include/components
 )
 
 target_link_libraries(rtype_game PUBLIC
     rtype_engine
+    rtype_engine_physics
     rtype_network
 )
 

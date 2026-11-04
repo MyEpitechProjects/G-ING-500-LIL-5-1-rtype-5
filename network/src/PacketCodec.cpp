@@ -123,6 +123,7 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
                 packet->instances.push_back(InstanceInfo{readU32(entry), readU16(entry + 4)});
             }
             return packet;
+
         } case PacketType::EVENT: {
             if (size < EVENT_BASE_WIRE_SIZE)
                 return nullptr;
@@ -160,7 +161,8 @@ bool Net::PacketCodec::validEventData(EventType type, const IEvent &event) {
     }
 }
 
-std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {    switch (type) {
+std::shared_ptr<const Net::IEvent> Net::PacketCodec::deserializeEvent(EventType type, const std::uint8_t* data, std::size_t size) {
+    switch (type) {
         case EventType::ACK:
             if (size != 0)
                 return nullptr;

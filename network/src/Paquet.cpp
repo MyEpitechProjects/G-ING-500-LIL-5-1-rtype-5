@@ -91,6 +91,7 @@ std::vector<std::uint8_t> Net::InstanceListPacket::serialize() const {
     return out;
 }
 
+
 std::vector<std::uint8_t> Net::EventPacket::serialize() const {
     if (!eventData || !PacketCodec::validEventData(eventType, *eventData))
         throw std::invalid_argument("Event data does not match event type");
