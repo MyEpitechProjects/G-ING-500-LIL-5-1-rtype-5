@@ -6,5 +6,5 @@ client_test.cpp
 build*
 /.venv/
 /site/
-test/
+tests/
 CMakeUserPresets.json
