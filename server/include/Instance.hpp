@@ -8,6 +8,7 @@
     #include <cstddef>
     #include <cstdint>
     #include <memory>
+    #include <mutex>
     #include <vector>
 
 class Instance {
@@ -15,6 +16,11 @@ class Instance {
         std::uint32_t _id;
         rtype::Game _game;
         std::atomic<bool> _updating = false;
+        std::mutex _queuesMutex;
+        std::vector<rtype::GameInput> _pendingInputs;
+        std::vector<rtype::GameOutput> _pendingOutputs;
+
+        void queueInput(const rtype::GameInput &input);
 
     public:
         Instance(std::uint32_t id);
