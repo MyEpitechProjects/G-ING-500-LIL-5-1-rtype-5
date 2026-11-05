@@ -100,4 +100,6 @@ namespace rtype::ecs {
     };
 
     struct UiRow {};
+
+    struct UiChat {};
 }

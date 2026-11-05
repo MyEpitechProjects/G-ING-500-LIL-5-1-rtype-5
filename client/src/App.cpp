@@ -5,7 +5,16 @@
 
 namespace {
     constexpr std::size_t VISIBLE_ROWS = 6;
+    constexpr std::size_t VISIBLE_CHAT_LINES = 7;
+    constexpr float CHAT_PREVIEW_DURATION = 5.0f;
+    constexpr float CHAT_X = 470.0f;
+    constexpr float CHAT_WIDTH = 320.0f;
+    constexpr float CHAT_BOX_Y = 370.0f;
+    constexpr float CHAT_BOX_HEIGHT = 176.0f;
+    constexpr float CHAT_INPUT_Y = 552.0f;
+    constexpr float CHAT_INPUT_HEIGHT = 36.0f;
     const sf::Color BLUE(50, 110, 200);
+    const sf::Color LIGHT_BLUE(130, 185, 255);
     const sf::Color GRAY(160, 160, 170);
     const sf::Color RED(235, 90, 90);
 }
@@ -36,6 +45,7 @@ void rtype::App::registerComponents() {
     _engine.registerComponent<ecs::UiInput>();
     _engine.registerComponent<ecs::UiButton>();
     _engine.registerComponent<ecs::UiRow>();
+    _engine.registerComponent<ecs::UiChat>();
 }
 
 
@@ -50,6 +60,9 @@ void rtype::App::clearScene() {
     _connectButton.reset();
     _statusLabel.reset();
     _gameOverLabel.reset();
+    _chatInput.reset();
+    _chatOpen = false;
+    _chatPreviewTimer = 0.0f;
 }
 
 void rtype::App::setScene(Scene scene) {
@@ -193,8 +206,120 @@ void rtype::App::rebuildRooms() {
 void rtype::App::buildGame() {
     _sync.reset();
     _sentKeys = {};
+    _chatHistory.clear();
+    _chatOpen = false;
+    _chatPreviewTimer = 0.0f;
     _window.setTitle("R-Type - room " + std::to_string(_net.instanceId()));
     addLabel(8, 6, "Room #" + std::to_string(_net.instanceId()), 14, GRAY, false);
+    rebuildChat();
+}
+
+void rtype::App::setChatOpen(bool open) {
+    if (_chatOpen == open)
+        return;
+    _chatOpen = open;
+    _chatPreviewTimer = 0.0f;
+    if (_chatOpen) {
+        if (!_chatInput) {
+            _chatInput = addInput(CHAT_X, CHAT_INPUT_Y, CHAT_WIDTH, CHAT_INPUT_HEIGHT,
+                "", "Enter: send | Esc: close", false, Net::MAX_CHAT_LENGTH);
+            _engine.getComponents<ecs::UiText>()[_chatInput->getId()]->size = 15;
+        }
+        _ui.focus = _chatInput;
+    } else {
+        if (_chatInput) {
+            _engine.killEntity(*_chatInput);
+            _chatInput.reset();
+        }
+        _ui.focus.reset();
+    }
+    rebuildChat();
+}
+
+void rtype::App::rebuildChat() {
+    Registry &registry = _engine.getRegistry();
+    const SparseArray<ecs::UiChat> &marks = registry.getComponents<ecs::UiChat>();
+    std::vector<Entity> stale;
+
+    for (std::size_t index = 0; index < marks.size(); ++index)
+        if (marks[index])
+            stale.emplace_back(index);
+    for (const Entity &entity : stale)
+        registry.killEntity(entity);
+
+    if (!_chatOpen) {
+        Entity hint = addLabel(CHAT_X + CHAT_WIDTH, CHAT_INPUT_Y + 10.0f, "[T] Chat", 14, GRAY, false);
+        sf::Text measure(_resources.font(), "[T] Chat", 14);
+        registry.getComponents<ecs::Transform>()[hint.getId()]->x =
+            CHAT_X + CHAT_WIDTH - measure.getLocalBounds().size.x - 4.0f;
+        registry.addComponent(hint, ecs::UiChat{});
+    }
+
+    const bool showBox = _chatOpen || _chatPreviewTimer > 0.0f;
+    if (!showBox)
+        return;
+
+    Entity box = registry.spawnEntity();
+    registry.addComponent(box, ecs::Transform{CHAT_X, CHAT_BOX_Y});
+    registry.addComponent(box, ecs::UiBox{
+        {CHAT_WIDTH, CHAT_BOX_HEIGHT},
+        sf::Color(20, 20, 28, 205),
+        sf::Color(80, 90, 120, 220)
+    });
+    registry.addComponent(box, ecs::UiChat{});
+
+    struct WrappedLine {
+        std::string text;
+        sf::Color color;
+    };
+    std::vector<WrappedLine> lines;
+    const float maxLineWidth = CHAT_WIDTH - 20.0f;
+    const sf::Font &font = _resources.font();
+
+    for (const auto &msg : _chatHistory) {
+        const bool isMe = msg.senderId == _net.sessionId();
+        const std::string prefix = isMe ? "You: " : ("P" + std::to_string(msg.senderId + 1) + ": ");
+        const sf::Color color = isMe ? LIGHT_BLUE : sf::Color::White;
+        const std::string full = prefix + msg.text;
+        std::string current;
+
+        for (char c : full) {
+            std::string candidate = current + c;
+            sf::Text measure(font, sf::String::fromUtf8(candidate.begin(), candidate.end()), 14);
+            if (!current.empty() && measure.getLocalBounds().size.x > maxLineWidth) {
+                lines.push_back({current, color});
+                current.assign(1, c);
+            } else {
+                current = std::move(candidate);
+            }
+        }
+        if (!current.empty())
+            lines.push_back({current, color});
+    }
+
+    if (lines.empty()) {
+        Entity emptyLabel = addLabel(CHAT_X + 10.0f, CHAT_BOX_Y + 10.0f, "No messages yet", 14, GRAY, false);
+        registry.addComponent(emptyLabel, ecs::UiChat{});
+        return;
+    }
+
+    const std::size_t start = lines.size() > VISIBLE_CHAT_LINES ? lines.size() - VISIBLE_CHAT_LINES : 0;
+    for (std::size_t i = start; i < lines.size(); ++i) {
+        const float y = CHAT_BOX_Y + 8.0f + static_cast<float>(i - start) * 23.0f;
+        Entity lineEntity = addLabel(CHAT_X + 10.0f, y, lines[i].text, 14, lines[i].color, false);
+        registry.addComponent(lineEntity, ecs::UiChat{});
+    }
+}
+
+void rtype::App::submitChat() {
+    if (!_chatOpen || !_chatInput || !_engine.hasComponent<ecs::UiInput>(*_chatInput))
+        return;
+    ecs::UiInput &input = *_engine.getComponents<ecs::UiInput>()[_chatInput->getId()];
+    if (!input.value.empty()) {
+        _net.sendChat(input.value);
+        input.value.clear();
+    }
+    _ui.focus = _chatInput;
 }
 
 void rtype::App::connectClicked() {
@@ -269,7 +394,7 @@ void rtype::App::updateLobby(const ecs::FrameInput &input) {
     }
 }
 
-void rtype::App::updateGame(float dt) {
+void rtype::App::updateGame(float dt, const ecs::FrameInput &input, bool enter) {
     using State = rtype::ClientNet::State;
 
     if (_net.state() == State::Failed) {
@@ -278,6 +403,30 @@ void rtype::App::updateGame(float dt) {
         setScene(Scene::Connect);
         return;
     }
+    if (input.escape && _chatOpen) {
+        setChatOpen(false);
+    } else if (input.openChat && !_chatOpen) {
+        setChatOpen(true);
+    } else if (_chatOpen) {
+        _ui.focus = _chatInput;
+        if (enter)
+            submitChat();
+    }
+
+    const auto incomingChats = _net.takeChats();
+    if (!incomingChats.empty()) {
+        for (const auto &msg : incomingChats)
+            _chatHistory.push_back(msg);
+        if (!_chatOpen)
+            _chatPreviewTimer = CHAT_PREVIEW_DURATION;
+        rebuildChat();
+    }
+    if (!_chatOpen && _chatPreviewTimer > 0.0f) {
+        _chatPreviewTimer = std::max(0.0f, _chatPreviewTimer - dt);
+        if (_chatPreviewTimer == 0.0f)
+            rebuildChat();
+    }
+
     _keys = readKeys();
     if (_keys != _sentKeys) {
         _net.sendInput(ecs::toButtons(_keys));
@@ -298,7 +447,7 @@ void rtype::App::updateGame(float dt) {
 rtype::ecs::Keys rtype::App::readKeys() const {
     ecs::Keys keys;
 
-    if (!_window.hasFocus())
+    if (!_window.hasFocus() || _chatOpen)
         return keys;
     keys.up = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
     keys.down = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down);
@@ -310,21 +459,33 @@ rtype::ecs::Keys rtype::App::readKeys() const {
 
 rtype::ecs::FrameInput rtype::App::pollEvents(bool &enter) {
     ecs::FrameInput input;
+    bool suppressChatKeyChar = false;
 
     enter = false;
     while (const std::optional event = _window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
             _window.close();
         } else if (const auto *key = event->getIf<sf::Event::KeyPressed>()) {
-            if (key->code == sf::Keyboard::Key::Escape)
-                _window.close();
-            else if (key->code == sf::Keyboard::Key::Backspace)
+            if (key->code == sf::Keyboard::Key::Escape) {
+                if (_scene == Scene::Game && _chatOpen)
+                    input.escape = true;
+                else
+                    _window.close();
+            } else if (key->code == sf::Keyboard::Key::Backspace) {
                 input.backspace = true;
-            else if (key->code == sf::Keyboard::Key::Tab)
+            } else if (key->code == sf::Keyboard::Key::Tab) {
                 input.tab = true;
-            else if (key->code == sf::Keyboard::Key::Enter)
+            } else if (key->code == sf::Keyboard::Key::Enter) {
                 enter = true;
+            } else if (key->code == sf::Keyboard::Key::T && _scene == Scene::Game && !_chatOpen) {
+                input.openChat = true;
+                suppressChatKeyChar = true;
+            }
         } else if (const auto *text = event->getIf<sf::Event::TextEntered>()) {
+            if (suppressChatKeyChar && (text->unicode == 't' || text->unicode == 'T')) {
+                suppressChatKeyChar = false;
+                continue;
+            }
             if (text->unicode >= 32 && text->unicode < 127)
                 input.typed.push_back(static_cast<char>(text->unicode));
         } else if (const auto *click = event->getIf<sf::Event::MouseButtonPressed>()) {
@@ -348,6 +509,8 @@ void rtype::App::run() {
 
         _ui.time += dt;
         _net.update();
+        if (_scene == Scene::Game && _chatOpen)
+            _ui.focus = _chatInput;
         _engine.applySystem(ecs::UiInputSystem{}, _ui, input);
         switch (_scene) {
             case Scene::Connect:
@@ -357,7 +520,7 @@ void rtype::App::run() {
                 updateLobby(input);
                 break;
             case Scene::Game:
-                updateGame(dt);
+                updateGame(dt, input, enter);
                 break;
         }
         _window.clear(sf::Color(30, 30, 30));
