@@ -1,9 +1,7 @@
 #include "NetworkHandler.hpp"
 #include "PacketCodec.hpp"
-#include <utility>
 
 Net::NetworkHandler::NetworkHandler(int port, std::shared_ptr<WakeSignal> wake): _socket(_io,udp::endpoint(udp::v4(), port)), _wakeSignal(std::move(wake)) {
-
 }
 
 Net::NetworkHandler::~NetworkHandler() {
@@ -20,6 +18,7 @@ void Net::NetworkHandler::receive() {
             }
             if (error) {
                 std::cerr << "Receive error : " << error.message() << '\n';
+                receive();
                 return;
             }
             auto packet = PacketCodec::deserialize(_receivedQueue.data(), received);

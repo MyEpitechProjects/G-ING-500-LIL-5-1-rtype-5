@@ -50,7 +50,6 @@ namespace Net {
             std::queue<IncomingPacket<Net::PacketCodec::Packet>> _incomingQueue;
 
             void flushOutgoing();
-
         public:
             NetworkHandler(int port, std::shared_ptr<WakeSignal> wake);
             ~NetworkHandler();
