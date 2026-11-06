@@ -10,6 +10,7 @@
 
     #include "AModule.hpp"
     #include "Color.hpp"
+    #include "Input.hpp"
     #include "Position.hpp"
     #include "Registry.hpp"
     #include "Shape.hpp"
@@ -20,6 +21,7 @@
     #include <cstdint>
     #include <exception>
     #include <functional>
+    #include <optional>
     #include <string>
     #include <unordered_map>
     #include <utility>
@@ -51,7 +53,7 @@ class RenderModule : public AModule {
         std::unordered_map<std::string, sf::Texture> _textures;
         std::unordered_map<std::string, Font> _fonts;
         std::unordered_map<std::string, Animation> _animations;
-        std::function<void(const sf::Event &)> _onEvent;
+        std::function<void(const Event &)> _onEvent;
 
         struct Drawable {
             int layer;
@@ -62,6 +64,8 @@ class RenderModule : public AModule {
             const Text *text;
         };
 
+        std::optional<Event> convert(const sf::Event &event) const;
+        void handleEvents();
         void drawTexture(const Position &position, const std::string &texture, const Frame &frame, bool centered);
         void draw(const Position &position, const Sprite &sprite);
         void draw(const Position &position, const SpriteAnimation &animation);
@@ -77,8 +81,8 @@ class RenderModule : public AModule {
         void close() { _window.close(); }
         void setTitle(const std::string &title) { _window.setTitle(title); }
         void setVerticalSync(bool enabled) { _window.setVerticalSyncEnabled(enabled); }
+        void onEvent(std::function<void(const Event &)> callback) { _onEvent = std::move(callback); }
         void setClearColor(const Color &color) { _clearColor = sf::Color(color.red, color.green, color.blue, color.alpha); }
-        void onEvent(std::function<void(const sf::Event &)> callback) { _onEvent = std::move(callback); }
 
         Position getMousePosition() const;
         float getLineSpacing(const std::string &font, unsigned int size) const;

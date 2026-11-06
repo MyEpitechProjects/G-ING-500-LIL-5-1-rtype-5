@@ -26,7 +26,7 @@ class Catch {
         int _spawnInterval;
 
         Engine _engine;
-        RenderModule *_render;
+        RenderModule *_window;
         Entity _paddle;
         std::vector<Entity> _lives;
         unsigned int _tick;
@@ -39,7 +39,6 @@ class Catch {
         void spawnFalling();
         void movePaddle();
         void loseLife();
-        void handleEvent(const sf::Event &event);
 
     public:
         Catch();
@@ -48,7 +47,7 @@ class Catch {
         Catch(const Catch &) = delete;
         Catch &operator=(const Catch &) = delete;
 
-        bool isRunning() const { return _render->isOpen(); }
+        bool isRunning() const { return _window->isOpen(); }
         void update();
 };
 }

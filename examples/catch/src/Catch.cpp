@@ -16,7 +16,7 @@
 #include <memory>
 
 demo::Catch::Catch()
-    : _width(800), _height(600), _paddleSpeed(7.0f), _spawnInterval(45), _render(nullptr),
+    : _width(800), _height(600), _paddleSpeed(7.0f), _spawnInterval(45), _window(nullptr),
     _paddle(_engine.spawnEntity()), _tick(0), _score(0), _left(false), _right(false) {
     std::unique_ptr<PhysicsModule> physics = std::make_unique<PhysicsModule>(-50, -100, _width + 50, _height + 50, 0.1f,
         [this](Entity entity) {
@@ -36,8 +36,21 @@ demo::Catch::Catch()
         registry.killEntity(bomb);
         loseLife();
     });
-    render->onEvent([this](const sf::Event &event) { handleEvent(event); });
-    _render = render.get();
+    _window = render.get();
+    render->onEvent([this](const Event &event) {
+        if (event.type == EventType::FocusLost) {
+            _left = false;
+            _right = false;
+        }
+        if (event.type != EventType::KeyPressed && event.type != EventType::KeyReleased)
+            return;
+        if (event.key == Key::Escape)
+            _window->close();
+        if (event.key == Key::Left)
+            _left = event.type == EventType::KeyPressed;
+        if (event.key == Key::Right)
+            _right = event.type == EventType::KeyPressed;
+    });
     _engine.addModule(std::move(physics));
     _engine.addModule(std::move(render));
     _engine.registerComponent<Paddle>();
@@ -104,21 +117,6 @@ void demo::Catch::loseLife() {
 
     paddle.fill = Color{120, 120, 120};
     std::cout << "Game over - final score: " << _score << std::endl;
-}
-
-void demo::Catch::handleEvent(const sf::Event &event) {
-    if (const sf::Event::KeyPressed *pressed = event.getIf<sf::Event::KeyPressed>()) {
-        if (pressed->code == sf::Keyboard::Key::Left)
-            _left = true;
-        if (pressed->code == sf::Keyboard::Key::Right)
-            _right = true;
-    }
-    if (const sf::Event::KeyReleased *released = event.getIf<sf::Event::KeyReleased>()) {
-        if (released->code == sf::Keyboard::Key::Left)
-            _left = false;
-        if (released->code == sf::Keyboard::Key::Right)
-            _right = false;
-    }
 }
 
 void demo::Catch::update() {

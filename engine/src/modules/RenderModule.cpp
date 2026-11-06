@@ -23,6 +23,43 @@ static sf::Vector2f toPixel(const Position &position) {
     return {std::round(position.x), std::round(position.y)};
 }
 
+static Key toKey(sf::Keyboard::Key key) {
+    if (key >= sf::Keyboard::Key::A && key <= sf::Keyboard::Key::Z)
+        return static_cast<Key>(static_cast<int>(Key::A) + static_cast<int>(key) - static_cast<int>(sf::Keyboard::Key::A));
+    if (key >= sf::Keyboard::Key::Num0 && key <= sf::Keyboard::Key::Num9)
+        return static_cast<Key>(static_cast<int>(Key::Num0) + static_cast<int>(key) - static_cast<int>(sf::Keyboard::Key::Num0));
+    switch (key) {
+        case sf::Keyboard::Key::Left:
+            return Key::Left;
+        case sf::Keyboard::Key::Right:
+            return Key::Right;
+        case sf::Keyboard::Key::Up:
+            return Key::Up;
+        case sf::Keyboard::Key::Down:
+            return Key::Down;
+        case sf::Keyboard::Key::Space:
+            return Key::Space;
+        case sf::Keyboard::Key::Enter:
+            return Key::Enter;
+        case sf::Keyboard::Key::Escape:
+            return Key::Escape;
+        case sf::Keyboard::Key::Backspace:
+            return Key::Backspace;
+        case sf::Keyboard::Key::Tab:
+            return Key::Tab;
+        default:
+            return Key::Unknown;
+    }
+}
+
+static MouseButton toMouseButton(sf::Mouse::Button button) {
+    if (button == sf::Mouse::Button::Right)
+        return MouseButton::Right;
+    if (button == sf::Mouse::Button::Middle)
+        return MouseButton::Middle;
+    return MouseButton::Left;
+}
+
 RenderModule::RenderModule(unsigned int width, unsigned int height, const std::string &title)
     : AModule("render"), _window(sf::VideoMode({width, height}), title), _clearColor(sf::Color::Black) {}
 
@@ -82,6 +119,42 @@ void RenderModule::loadAnimation(const std::string &name, const std::string &tex
     _animations.insert_or_assign(name, Animation{texture, frames, delay});
 }
 
+std::optional<Event> RenderModule::convert(const sf::Event &event) const {
+    if (event.is<sf::Event::Closed>())
+        return Event{EventType::Closed};
+    if (event.is<sf::Event::FocusLost>())
+        return Event{EventType::FocusLost};
+    if (const sf::Event::KeyPressed *pressed = event.getIf<sf::Event::KeyPressed>())
+        return Event{EventType::KeyPressed, toKey(pressed->code)};
+    if (const sf::Event::KeyReleased *released = event.getIf<sf::Event::KeyReleased>())
+        return Event{EventType::KeyReleased, toKey(released->code)};
+    if (const sf::Event::TextEntered *text = event.getIf<sf::Event::TextEntered>())
+        return Event{EventType::TextEntered, Key::Unknown, text->unicode};
+    if (const sf::Event::MouseButtonPressed *pressed = event.getIf<sf::Event::MouseButtonPressed>()) {
+        sf::Vector2f mouse = _window.mapPixelToCoords(pressed->position);
+        return Event{EventType::MouseButtonPressed, Key::Unknown, 0, toMouseButton(pressed->button), mouse.x, mouse.y};
+    }
+    if (const sf::Event::MouseButtonReleased *released = event.getIf<sf::Event::MouseButtonReleased>()) {
+        sf::Vector2f mouse = _window.mapPixelToCoords(released->position);
+        return Event{EventType::MouseButtonReleased, Key::Unknown, 0, toMouseButton(released->button), mouse.x, mouse.y};
+    }
+    if (const sf::Event::MouseWheelScrolled *wheel = event.getIf<sf::Event::MouseWheelScrolled>()) {
+        sf::Vector2f mouse = _window.mapPixelToCoords(wheel->position);
+        return Event{EventType::MouseWheelScrolled, Key::Unknown, 0, MouseButton::Left, mouse.x, mouse.y, wheel->delta};
+    }
+    return std::nullopt;
+}
+
+void RenderModule::handleEvents() {
+    while (const std::optional<sf::Event> event = _window.pollEvent()) {
+        if (event->is<sf::Event::Closed>())
+            _window.close();
+        std::optional<Event> converted = convert(*event);
+        if (converted && _onEvent)
+            _onEvent(*converted);
+    }
+}
+
 void RenderModule::registerComponents(Registry &registry) {
     registry.registerComponent<Position>();
     registry.registerComponent<Sprite>();
@@ -100,12 +173,7 @@ void RenderModule::update(Registry &registry, double elapsedSeconds) {
 
     if (!_window.isOpen())
         return;
-    while (const std::optional<sf::Event> event = _window.pollEvent()) {
-        if (event->is<sf::Event::Closed>())
-            _window.close();
-        if (_onEvent)
-            _onEvent(*event);
-    }
+    handleEvents();
     if (!_window.isOpen())
         return;
     for (std::optional<SpriteAnimation> &animation : animations)
