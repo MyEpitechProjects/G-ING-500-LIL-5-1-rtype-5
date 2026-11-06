@@ -30,6 +30,7 @@ class Game {
         unsigned int _score;
         std::chrono::steady_clock::time_point _lastUpdate;
         double _lag;
+        bool _seeded;
 
         std::vector<rtype::GameInput> _in;
         std::vector<rtype::GameOutput> _out;

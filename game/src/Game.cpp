@@ -16,10 +16,12 @@
 #include "Projectile.hpp"
 
 #include <cstdint>
+#include <cstdlib>
+#include <ctime>
 #include <memory>
 #include <utility>
 
-rtype::Game::Game(float tickRate) : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tickPeriod(1.0 / tickRate), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()), _lag(0) {
+rtype::Game::Game(float tickRate) : _width(800), _height(600), _playerSpeed(5), _shotInterval(0.3), _enemyInterval(60), _tickPeriod(1.0 / tickRate), _tick(0), _score(0), _lastUpdate(std::chrono::steady_clock::now()), _lag(0), _seeded(false) {
     init();
 }
 
@@ -146,6 +148,10 @@ void rtype::Game::init() {
 void rtype::Game::update() {
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
+    if (!_seeded) {
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
+        _seeded = true;
+    }
     _lag += std::chrono::duration<double>(now - _lastUpdate).count();
     _lastUpdate = now;
     for (; _lag >= _tickPeriod; _lag -= _tickPeriod) {
