@@ -51,7 +51,7 @@ demo::Catch::Catch()
 void demo::Catch::spawnPaddle() {
     _engine.addComponent(_paddle, Position{_width / 2.0f, _height - 30.0f});
     _engine.addComponent(_paddle, Hitbox{50, 10});
-    _engine.addComponent(_paddle, Shape{ShapeType::Rectangle, 100.0f, 20.0f, 80, 160, 255, 1});
+    _engine.addComponent(_paddle, Shape{ShapeType::Rectangle, 100.0f, 20.0f, Color{80, 160, 255}, 1});
     _engine.addComponent(_paddle, Paddle{});
 }
 
@@ -60,7 +60,7 @@ void demo::Catch::spawnLives(int count) {
         Entity life = _engine.spawnEntity();
 
         _engine.addComponent(life, Position{20.0f + i * 25.0f, 20.0f});
-        _engine.addComponent(life, Shape{ShapeType::Rectangle, 16.0f, 16.0f, 230, 60, 60, 2});
+        _engine.addComponent(life, Shape{ShapeType::Rectangle, 16.0f, 16.0f, Color{230, 60, 60}, 2});
         _lives.push_back(life);
     }
 }
@@ -74,11 +74,11 @@ void demo::Catch::spawnFalling() {
     _engine.addComponent(entity, Velocity{0.0f, speed});
     _engine.addComponent(entity, Hitbox{10, 10});
     if (std::rand() % 4 == 0) {
-        _engine.addComponent(entity, Shape{ShapeType::Rectangle, 20.0f, 20.0f, 230, 60, 60, 1});
+        _engine.addComponent(entity, Shape{ShapeType::Rectangle, 20.0f, 20.0f, Color{230, 60, 60}, 1});
         _engine.addComponent(entity, Bomb{});
         return;
     }
-    _engine.addComponent(entity, Shape{ShapeType::Circle, 20.0f, 20.0f, 90, 220, 90, 1});
+    _engine.addComponent(entity, Shape{ShapeType::Circle, 20.0f, 20.0f, Color{90, 220, 90}, 1});
     _engine.addComponent(entity, Fruit{});
 }
 
@@ -102,9 +102,7 @@ void demo::Catch::loseLife() {
         return;
     Shape &paddle = _engine.getComponents<Shape>()[_paddle.getId()].value();
 
-    paddle.red = 120;
-    paddle.green = 120;
-    paddle.blue = 120;
+    paddle.fill = Color{120, 120, 120};
     std::cout << "Game over - final score: " << _score << std::endl;
 }
 

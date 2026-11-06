@@ -17,6 +17,8 @@ struct Sprite {
     int width;
     int height;
     int layer;
+    bool centered = true;
+    bool visible = true;
 };
 
 #endif
