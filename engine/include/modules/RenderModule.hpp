@@ -13,64 +13,25 @@
     #include "Input.hpp"
     #include "Position.hpp"
     #include "Registry.hpp"
-    #include "Shape.hpp"
-    #include "Sprite.hpp"
-    #include "SpriteAnimation.hpp"
-    #include "Text.hpp"
+    #include "RenderSystems.hpp"
     #include <SFML/Graphics.hpp>
     #include <cstdint>
     #include <exception>
     #include <functional>
     #include <optional>
     #include <string>
-    #include <unordered_map>
     #include <utility>
     #include <vector>
 
 class RenderModule : public AModule {
-    public:
-        struct Frame {
-            int left;
-            int top;
-            int width;
-            int height;
-        };
-
     private:
-        struct Animation {
-            std::string texture;
-            std::vector<Frame> frames;
-            double delay;
-        };
-
-        struct Font {
-            std::vector<std::uint8_t> data;
-            sf::Font font;
-        };
-
         sf::RenderWindow _window;
         sf::Color _clearColor;
-        std::unordered_map<std::string, sf::Texture> _textures;
-        std::unordered_map<std::string, Font> _fonts;
-        std::unordered_map<std::string, Animation> _animations;
+        RenderResources _resources;
         std::function<void(const Event &)> _onEvent;
-
-        struct Drawable {
-            int layer;
-            const Position *position;
-            const Sprite *sprite;
-            const SpriteAnimation *animation;
-            const Shape *shape;
-            const Text *text;
-        };
 
         std::optional<Event> convert(const sf::Event &event) const;
         void handleEvents();
-        void drawTexture(const Position &position, const std::string &texture, const Frame &frame, bool centered);
-        void draw(const Position &position, const Sprite &sprite);
-        void draw(const Position &position, const SpriteAnimation &animation);
-        void draw(const Position &position, const Shape &shape);
-        void draw(const Position &position, const Text &text);
 
     public:
         RenderModule(unsigned int width, unsigned int height, const std::string &title);
@@ -91,7 +52,7 @@ class RenderModule : public AModule {
         void loadTexture(const std::string &name, const std::vector<std::uint8_t> &data);
         void loadFont(const std::string &name, const std::string &path);
         void loadFont(const std::string &name, const std::vector<std::uint8_t> &data);
-        void loadAnimation(const std::string &name, const std::string &texture, const std::vector<Frame> &frames, double delay);
+        void loadAnimation(const std::string &name, const std::string &texture, const std::vector<AnimationFrame> &frames, double delay);
 
         void registerComponents(Registry &registry) override;
         void update(Registry &registry, double elapsedSeconds) override;

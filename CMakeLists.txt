@@ -51,6 +51,8 @@ target_link_libraries(rtype_engine_physics PUBLIC
 
 add_library(rtype_engine_render STATIC
     engine/src/modules/RenderModule.cpp
+    engine/src/systems/AnimationSystem.cpp
+    engine/src/systems/DrawSystem.cpp
 )
 
 target_link_libraries(rtype_engine_render PUBLIC
