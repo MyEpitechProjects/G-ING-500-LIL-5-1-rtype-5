@@ -77,6 +77,8 @@ bool rtype::ClientNet::connect(const std::string &address, const std::string &po
     _rooms.clear();
     _snapshots.clear();
     _events.clear();
+    _chats.clear();
+    _seenEvents.clear();
     _sessionId = 0;
     _instanceId = 0;
     _lastReceived = now();
@@ -111,6 +113,19 @@ void rtype::ClientNet::sendInput(std::uint16_t buttons) {
     _network.send(std::move(packet), _server);
     _lastButtons = buttons;
     _lastInput = now();
+}
+
+void rtype::ClientNet::sendChat(const std::string &text) {
+    if (_state != State::InGame || text.empty())
+        return;
+    const std::string payload = text.size() > Net::MAX_CHAT_LENGTH
+        ? text.substr(0, Net::MAX_CHAT_LENGTH)
+        : text;
+    auto packet = std::make_unique<Net::EventPacket>();
+    packet->header.sessionId = _sessionId;
+    packet->eventType = Net::EventType::CHAT;
+    packet->eventData = std::make_shared<Net::ChatEvent>(_sessionId, payload);
+    _network.send(std::move(packet), _server);
 }
 
 void rtype::ClientNet::sendAck(std::uint32_t eventId) {
@@ -180,6 +195,8 @@ void rtype::ClientNet::handleInstanceReply(std::uint32_t instanceId) {
         return;
     }
     _instanceId = instanceId;
+    _chats.clear();
+    _seenEvents.clear();
     _lastReceived = now();
     _lastInput = now();
     _lastButtons = 0;
@@ -190,6 +207,13 @@ void rtype::ClientNet::handleEvent(const Net::EventPacket &event) {
     sendAck(event.eventId);
     if (_state != State::InGame)
         return;
+    if (!_seenEvents.insert(event.eventId).second)
+        return;
+    if (event.eventType == Net::EventType::CHAT) {
+        if (const auto *chat = dynamic_cast<const Net::ChatEvent *>(event.eventData.get()))
+            _chats.push_back({chat->senderId, chat->text});
+        return;
+    }
     auto *entity = dynamic_cast<const Net::EntityEvent *>(event.eventData.get());
     if (!entity)
         return;
@@ -245,5 +269,11 @@ std::vector<rtype::ClientNet::Snapshot> rtype::ClientNet::takeSnapshots() {
 std::vector<rtype::ClientNet::Event> rtype::ClientNet::takeEvents() {
     std::vector<Event> out;
     out.swap(_events);
+    return out;
+}
+
+std::vector<rtype::ClientNet::ChatMessage> rtype::ClientNet::takeChats() {
+    std::vector<ChatMessage> out;
+    out.swap(_chats);
     return out;
 }

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 #include <asio/ip/udp.hpp>
 #include "NetworkHandler.hpp"
@@ -27,6 +28,10 @@ namespace rtype {
                 Net::EventType type;
                 std::uint32_t entityId;
             };
+            struct ChatMessage {
+                std::uint32_t senderId;
+                std::string text;
+            };
 
             ClientNet();
             ~ClientNet();
@@ -37,18 +42,21 @@ namespace rtype {
             void createRoom();
             void joinRoom(std::uint32_t id);
             void sendInput(std::uint16_t buttons);
+            void sendChat(const std::string &text);
             void update();
 
             State state() const { return _state; }
             const std::string &error() const { return _error; }
             const std::vector<Room> &rooms() const { return _rooms; }
             unsigned roomsVersion() const { return _roomsVersion; }
+            std::uint32_t sessionId() const { return _sessionId; }
             std::uint32_t instanceId() const { return _instanceId; }
             std::string serverName() const;
             double now() const;
 
             std::vector<Snapshot> takeSnapshots();
             std::vector<Event> takeEvents();
+            std::vector<ChatMessage> takeChats();
 
         private:
             using Clock = std::chrono::steady_clock;
@@ -78,6 +86,8 @@ namespace rtype {
             unsigned _roomsVersion = 0;
             std::vector<Snapshot> _snapshots;
             std::vector<Event> _events;
+            std::vector<ChatMessage> _chats;
+            std::unordered_set<std::uint32_t> _seenEvents;
 
             void setState(State state);
             void fail(const std::string &message);

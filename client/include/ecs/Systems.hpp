@@ -21,6 +21,8 @@ namespace rtype::ecs {
         std::string typed;
         bool backspace = false;
         bool tab = false;
+        bool openChat = false;
+        bool escape = false;
         bool clicked = false;
         float wheel = 0.0f;
         sf::Vector2f mouse{};

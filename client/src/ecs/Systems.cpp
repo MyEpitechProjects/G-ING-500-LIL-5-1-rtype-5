@@ -408,6 +408,15 @@ void UiRenderSystem::operator()(Registry &registry, sf::RenderWindow &window, co
                 if (focused && std::fmod(ui.time, 1.0f) < 0.5f)
                     content += '|';
             }
+            if (index < boxes.size() && boxes[index]) {
+                const float maxTextWidth = std::max(0.0f, boxes[index]->size.x - 24.0f);
+                while (content.size() > 1) {
+                    sf::Text measure(font, sf::String::fromUtf8(content.begin(), content.end()), label.size);
+                    if (measure.getLocalBounds().size.x <= maxTextWidth)
+                        break;
+                    content.erase(0, 1);
+                }
+            }
         }
         sf::Text text(font, sf::String::fromUtf8(content.begin(), content.end()), label.size);
         const sf::FloatRect bounds = text.getLocalBounds();

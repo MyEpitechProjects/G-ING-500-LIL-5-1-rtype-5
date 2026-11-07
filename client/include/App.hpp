@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 #include "AssetsPak.hpp"
 #include "ClientNet.hpp"
 #include "Engine.hpp"
@@ -45,6 +46,10 @@ namespace rtype {
             std::optional<Entity> _connectButton;
             std::optional<Entity> _statusLabel;
             std::optional<Entity> _gameOverLabel;
+            std::optional<Entity> _chatInput;
+            bool _chatOpen = false;
+            float _chatPreviewTimer = 0.0f;
+            std::vector<rtype::ClientNet::ChatMessage> _chatHistory;
             unsigned _seenRoomsVersion = 0;
             rtype::ClientNet::State _seenState = rtype::ClientNet::State::Idle;
             std::size_t _scroll = 0;
@@ -67,11 +72,14 @@ namespace rtype {
             void buildLobby();
             void rebuildRooms();
             void buildGame();
+            void setChatOpen(bool open);
+            void rebuildChat();
+            void submitChat();
 
             void connectClicked();
             void updateConnect(bool enter);
             void updateLobby(const ecs::FrameInput &input);
-            void updateGame(float dt);
+            void updateGame(float dt, const ecs::FrameInput &input, bool enter);
 
             ecs::FrameInput pollEvents(bool &enter);
             ecs::Keys readKeys() const;
