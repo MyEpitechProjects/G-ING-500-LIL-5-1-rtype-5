@@ -32,7 +32,7 @@ uniqueness or application-level validity. It does not increment the sequence aut
 | Value | Name | Intended purpose | Total size |
 | --- | --- | --- | --- |
 | `1` | `INPUT` | Player input, client → server | 10 bytes |
-| `2` | `SNAPSHOT` | Entity states, server → client | `14 + 16 × N` bytes |
+| `2` | `SNAPSHOT` | Entity states, server → client | `18 + 16 × N` bytes |
 | `3` | `HELLO` | Connection request, client → server | 8 bytes |
 | `4` | `WELCOME` | Session assignment, server → client | 12 bytes |
 | `5` | `CREATE_INSTANCE` | Instance creation request, client → server | 8 bytes |
@@ -95,18 +95,19 @@ simultaneously; other bits are rejected.
 | Offset | Size | Field | Description |
 | --- | --- | --- | --- |
 | 8 | 4 | `serverTick` | Server tick associated with this state |
-| 12 | 2 | `count` | Number of entities `N` |
-| 14 | `16 × N` | `entities` | Consecutive entities, in vector order |
+| 12 | 4 | `score` | Current game score |
+| 16 | 2 | `count` | Number of entities `N` |
+| 18 | `16 × N` | `entities` | Consecutive entities, in vector order |
 
-An empty snapshot is valid and occupies 14 bytes. The maximum number of entities is:
+An empty snapshot is valid and occupies 18 bytes. The maximum number of entities is:
 
 ```text
-MAX_SNAPSHOT_ENTITIES = (1200 - 14) / 16 = 74 (integer division)
-Size of a snapshot with 74 entities = 1198 bytes
+MAX_SNAPSHOT_ENTITIES = (1200 - 18) / 16 = 73 (integer division)
+Size of a snapshot with 73 entities = 1186 bytes
 ```
 
 Each entity occupies exactly **16 bytes**. The following offsets are relative
-to the start of the entity; the entity at index `i` starts at `14 + 16 × i`.
+to the start of the entity; the entity at index `i` starts at `18 + 16 × i`.
 
 | Relative offset | Size | Field | Encoding |
 | --- | --- | --- | --- |
@@ -204,7 +205,7 @@ A packet is rejected if:
 - the size does not exactly match the packet type: truncated data and extra bytes are rejected;
 - an `INPUT` contains undefined button bits;
 - an `EVENT` has an unknown subtype or a payload size that does not match it;
-- a `SNAPSHOT` declares more than 74 entities or a size other than `14 + 16 × count`;
+- a `SNAPSHOT` declares more than 73 entities or a size other than `18 + 16 × count`;
 - an entity contains an unknown type or a non-finite coordinate.
 
 The `serialize() const` methods return the packet bytes. They throw
@@ -247,10 +248,10 @@ INSTANCE, join request or answer for instance 3, session 42:
 06 01 00 00 00 00 00 2A 00 00 00 03
 ```
 
-Empty SNAPSHOT, version 1, sequence 2, session 42 and server tick 100:
+Empty SNAPSHOT, version 1, sequence 2, session 42, server tick 100 and score 0:
 
 ```text
-02 01 00 02 00 00 00 2A 00 00 00 64 00 00
+02 01 00 02 00 00 00 2A 00 00 00 64 00 00 00 00 00 00
 ```
 
 DESTROY event 100, recipient session 42, entity 7:

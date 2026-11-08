@@ -20,6 +20,7 @@ std::vector<std::uint8_t> Net::SnapshotPacket::serialize() const {
     out.reserve(SNAPSHOT_BASE_WIRE_SIZE + entities.size() * ENTITY_WIRE_SIZE);
     PacketCodec::writeHeader(out, header, PacketType::SNAPSHOT);
     PacketCodec::writeU32(out, serverTick);
+    PacketCodec::writeU32(out, score);
     PacketCodec::writeU16(out, static_cast<std::uint16_t>(entities.size()));
     for (const auto& entity : entities) {
         if (PacketCodec::validEntity(entity)) {

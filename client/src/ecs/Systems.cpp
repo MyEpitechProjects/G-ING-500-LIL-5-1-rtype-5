@@ -35,6 +35,8 @@ void NetSyncSystem::reset() {
     _charge.reset();
     _lastTick.reset();
     _localDead = false;
+    _localHealth = 3;
+    _score = 0;
 }
 
 double NetSyncSystem::renderTime(double localNow) const {
@@ -76,8 +78,10 @@ Entity NetSyncSystem::spawn(Registry &registry, const Net::EntityState &state) {
     }
     registry.addComponent(entity, renderable);
     _entities.emplace(state.id, entity);
-    if (state.kind == Net::EntityKind::PLAYER && _myEntity && *_myEntity == state.id)
+    if (state.kind == Net::EntityKind::PLAYER && _myEntity && *_myEntity == state.id) {
         promoteToLocal(registry, entity);
+        _localHealth = state.health;
+    }
     return entity;
 }
 
@@ -104,6 +108,7 @@ void NetSyncSystem::applySnapshot(Registry &registry, const rtype::ClientNet::Sn
     if (_lastTick && snapshot.tick <= *_lastTick)
         return;
     _lastTick = snapshot.tick;
+    _score = snapshot.score;
     _clock.onSnapshot(snapshot.tick, snapshot.receivedAt);
 
     const double time = _clock.tickTime(snapshot.tick);
@@ -113,6 +118,8 @@ void NetSyncSystem::applySnapshot(Registry &registry, const rtype::ClientNet::Sn
         auto found = _entities.find(state.id);
         Entity entity = found != _entities.end() ? found->second : spawn(registry, state);
         registry.getComponents<Interpolated>()[entity.getId()]->buffer.push(time, state.x, state.y);
+        if (_myEntity && state.id == *_myEntity)
+            _localHealth = state.health;
     }
 }
 
@@ -131,6 +138,7 @@ void NetSyncSystem::applyEvent(Registry &registry, const rtype::ClientNet::Event
     _destroyed.insert(event.entityId);
     if (_myEntity && *_myEntity == event.entityId) {
         _localDead = true;
+        _localHealth = 0;
         if (_charge) {
             registry.killEntity(*_charge);
             _charge.reset();

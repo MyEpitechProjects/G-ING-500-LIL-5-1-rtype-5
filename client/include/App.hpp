@@ -47,6 +47,11 @@ namespace rtype {
             std::optional<Entity> _statusLabel;
             std::optional<Entity> _gameOverLabel;
             std::optional<Entity> _chatInput;
+            std::optional<Entity> _livesLabel;
+            std::optional<Entity> _scoreLabel;
+            std::optional<Entity> _hudBar;
+            int _seenHealth = -1;
+            int _seenScore = -1;
             bool _chatOpen = false;
             float _chatPreviewTimer = 0.0f;
             std::vector<rtype::ClientNet::ChatMessage> _chatHistory;
@@ -80,6 +85,7 @@ namespace rtype {
             void updateConnect(bool enter);
             void updateLobby(const ecs::FrameInput &input);
             void updateGame(float dt, const ecs::FrameInput &input, bool enter);
+            void updateHud();
 
             ecs::FrameInput pollEvents(bool &enter);
             ecs::Keys readKeys() const;

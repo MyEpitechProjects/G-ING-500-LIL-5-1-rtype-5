@@ -256,6 +256,7 @@ Net::SnapshotPacket rtype::Server::convertGameOutput(const GameOutput &snapshot)
     }
     packet.entities = entities;
     packet.serverTick = snapshot.tick;
+    packet.score = snapshot.score;
     return packet;
 }
 

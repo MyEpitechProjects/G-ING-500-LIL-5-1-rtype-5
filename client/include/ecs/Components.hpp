@@ -102,4 +102,6 @@ namespace rtype::ecs {
     struct UiRow {};
 
     struct UiChat {};
+
+    struct UiHud {};
 }

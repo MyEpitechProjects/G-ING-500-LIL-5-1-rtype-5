@@ -246,7 +246,7 @@ void rtype::ClientNet::pump() {
             handleInstanceReply(reply->instanceId);
         } else if (auto *snapshot = dynamic_cast<Net::SnapshotPacket *>(packet)) {
             if (_state == State::InGame)
-                _snapshots.push_back({snapshot->serverTick, seconds(message.receivedAt), std::move(snapshot->entities)});
+                _snapshots.push_back({snapshot->serverTick, snapshot->score, seconds(message.receivedAt), std::move(snapshot->entities)});
         } else if (auto *event = dynamic_cast<Net::EventPacket *>(packet)) {
             handleEvent(*event);
         }

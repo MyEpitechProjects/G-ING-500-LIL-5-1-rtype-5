@@ -72,12 +72,13 @@ Net::PacketCodec::Packet Net::PacketCodec::deserialize(const std::uint8_t* data,
         } case PacketType::SNAPSHOT: {
             if (size < SNAPSHOT_BASE_WIRE_SIZE)
                 return nullptr;
-            const auto count = readU16(data + HEADER_WIRE_SIZE + 4);
+            const auto count = readU16(data + HEADER_WIRE_SIZE + 8);
             if (count > MAX_SNAPSHOT_ENTITIES
                 || size != SNAPSHOT_BASE_WIRE_SIZE + count * ENTITY_WIRE_SIZE)
                 return nullptr;
             std::unique_ptr<SnapshotPacket> packet = std::make_unique<SnapshotPacket>(header);
             packet->serverTick = readU32(data + HEADER_WIRE_SIZE);
+            packet->score = readU32(data + HEADER_WIRE_SIZE + 4);
             packet->entities.reserve(count);
             for (std::size_t i = 0; i < count; ++i) {
                 const auto* entry = data + SNAPSHOT_BASE_WIRE_SIZE + i * ENTITY_WIRE_SIZE;

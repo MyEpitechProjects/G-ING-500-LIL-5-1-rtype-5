@@ -1,7 +1,9 @@
 #include "App.hpp"
 #include "Constants.hpp"
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 namespace {
     constexpr std::size_t VISIBLE_ROWS = 6;
@@ -17,6 +19,8 @@ namespace {
     const sf::Color LIGHT_BLUE(130, 185, 255);
     const sf::Color GRAY(160, 160, 170);
     const sf::Color RED(235, 90, 90);
+    const sf::Color GREEN(80, 220, 120);
+    const sf::Color YELLOW(240, 210, 80);
 }
 
 rtype::App::App(Options options)
@@ -46,6 +50,7 @@ void rtype::App::registerComponents() {
     _engine.registerComponent<ecs::UiButton>();
     _engine.registerComponent<ecs::UiRow>();
     _engine.registerComponent<ecs::UiChat>();
+    _engine.registerComponent<ecs::UiHud>();
 }
 
 
@@ -61,6 +66,11 @@ void rtype::App::clearScene() {
     _statusLabel.reset();
     _gameOverLabel.reset();
     _chatInput.reset();
+    _livesLabel.reset();
+    _scoreLabel.reset();
+    _hudBar.reset();
+    _seenHealth = -1;
+    _seenScore = -1;
     _chatOpen = false;
     _chatPreviewTimer = 0.0f;
 }
@@ -204,13 +214,45 @@ void rtype::App::rebuildRooms() {
 }
 
 void rtype::App::buildGame() {
+    Registry &registry = _engine.getRegistry();
+
     _sync.reset();
     _sentKeys = {};
     _chatHistory.clear();
     _chatOpen = false;
     _chatPreviewTimer = 0.0f;
+    _seenHealth = -1;
+    _seenScore = -1;
     _window.setTitle("R-Type - room " + std::to_string(_net.instanceId()));
-    addLabel(8, 6, "Room #" + std::to_string(_net.instanceId()), 14, GRAY, false);
+
+    // Top HUD bar
+    Entity bar = registry.spawnEntity();
+    registry.addComponent(bar, ecs::Transform{0.0f, 0.0f});
+    registry.addComponent(bar, ecs::UiBox{
+        {static_cast<float>(config::WINDOW_WIDTH), 32.0f},
+        sf::Color(16, 18, 26, 200),
+        sf::Color(55, 65, 90, 180)
+    });
+    registry.addComponent(bar, ecs::UiHud{});
+    _hudBar = bar;
+
+    // Top-left: Remaining lives with hearts
+    Entity lives = addLabel(16.0f, 6.0f, "LIFE: ♥ ♥ ♥", 16, RED, false);
+    registry.addComponent(lives, ecs::UiHud{});
+    _livesLabel = lives;
+
+    // Room info
+    Entity room = addLabel(150.0f, 8.0f, "Room #" + std::to_string(_net.instanceId()), 13, GRAY, false);
+    registry.addComponent(room, ecs::UiHud{});
+
+    // Top-right: Score
+    Entity score = addLabel(660.0f, 6.0f, "SCORE: 000000", 16, sf::Color::White, false);
+    registry.addComponent(score, ecs::UiHud{});
+    sf::Text measure(_resources.font(), "SCORE: 000000", 16);
+    registry.getComponents<ecs::Transform>()[score.getId()]->x =
+        static_cast<float>(config::WINDOW_WIDTH) - measure.getLocalBounds().size.x - 16.0f;
+    _scoreLabel = score;
+
     rebuildChat();
 }
 
@@ -438,9 +480,44 @@ void rtype::App::updateGame(float dt, const ecs::FrameInput &input, bool enter) 
     _engine.applySystem(ecs::ShipAnimationSystem{});
     _engine.applySystem(ecs::ChargeEffectSystem{}, _keys, dt);
     _engine.applySystem(ecs::AnimationSystem{}, dt);
+    updateHud();
     if (_sync.localPlayerDead() && !_gameOverLabel) {
         _gameOverLabel = addLabel(400, 270, "Game Over", 32, RED, true);
         addLabel(400, 320, "Escape to quit", 18, GRAY, true);
+    }
+}
+
+void rtype::App::updateHud() {
+    const std::uint16_t health = _sync.localHealth();
+    const unsigned int score = _sync.score();
+
+    if (static_cast<int>(health) != _seenHealth) {
+        _seenHealth = static_cast<int>(health);
+        if (_livesLabel && _engine.hasComponent<ecs::UiText>(*_livesLabel)) {
+            constexpr std::uint16_t maxLives = 3;
+            const std::uint16_t total = std::max<std::uint16_t>(maxLives, health);
+            std::string hearts;
+            for (std::uint16_t i = 0; i < total; ++i) {
+                if (!hearts.empty())
+                    hearts += ' ';
+                hearts += (i < health) ? "♥" : "♡";
+            }
+            setLabel(*_livesLabel, "LIFE: " + hearts, RED);
+        }
+    }
+
+    if (static_cast<int>(score) != _seenScore) {
+        _seenScore = static_cast<int>(score);
+        if (_scoreLabel && _engine.hasComponent<ecs::UiText>(*_scoreLabel)
+            && _engine.hasComponent<ecs::Transform>(*_scoreLabel)) {
+            std::ostringstream ss;
+            ss << "SCORE: " << std::setw(6) << std::setfill('0') << score;
+            const std::string scoreText = ss.str();
+            setLabel(*_scoreLabel, scoreText, sf::Color::White);
+            sf::Text measure(_resources.font(), sf::String::fromUtf8(scoreText.begin(), scoreText.end()), 16);
+            _engine.getComponents<ecs::Transform>()[_scoreLabel->getId()]->x =
+                static_cast<float>(config::WINDOW_WIDTH) - measure.getLocalBounds().size.x - 16.0f;
+        }
     }
 }
 
