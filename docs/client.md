@@ -4,8 +4,9 @@ Everything in the client is an entity of the engine's `Registry` (same `Engine`,
 `SparseArray`, `Zipper` and functor-system convention as the server).
 
 - **Scenes** (`App`): Connect (address/port fields) -> Lobby (room list from
-  `LIST_INSTANCES`, *Join* / *Create* buttons) -> Game. UI widgets are entities too
+  `LIST_INSTANCES`, *Join* / *Create* buttons) -> Game, plus a Controls menu accessible from Connect and Lobby. UI widgets are entities too
   (`UiBox`, `UiText`, `UiInput`, `UiButton`).
+- **Keybindings** (`KeyBindings`): players can remap movement (`Up`, `Down`, `Left`, `Right`), shooting (`X` by default) and opening chat (`T` by default) interactively from the Controls scene, with automatic conflict swapping and a reset-to-defaults button.
 - **Network** (`ClientNet`): HELLO -> Lobby -> CREATE_INSTANCE/INSTANCE -> InGame, with retries and timeouts.
 - **Interpolation**: remote entities keep a `SnapshotBuffer` (positions by server time) and are
   drawn `INTERP_DELAY` (2 ticks) in the past, interpolated between two snapshots. `ServerClock`

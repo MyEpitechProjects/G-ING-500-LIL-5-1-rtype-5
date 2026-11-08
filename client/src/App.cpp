@@ -21,6 +21,57 @@ namespace {
     const sf::Color RED(235, 90, 90);
     const sf::Color GREEN(80, 220, 120);
     const sf::Color YELLOW(240, 210, 80);
+    const sf::Color DARK_BTN(45, 55, 78);
+    const sf::Color ACTIVE_BTN(190, 130, 35);
+
+    std::string keyToString(sf::Keyboard::Key key) {
+        using Key = sf::Keyboard::Key;
+        if (key >= Key::A && key <= Key::Z) {
+            return std::string(1, static_cast<char>('A' + (static_cast<int>(key) - static_cast<int>(Key::A))));
+        }
+        if (key >= Key::Num0 && key <= Key::Num9) {
+            return std::string(1, static_cast<char>('0' + (static_cast<int>(key) - static_cast<int>(Key::Num0))));
+        }
+        if (key >= Key::Numpad0 && key <= Key::Numpad9) {
+            return "Numpad " + std::to_string(static_cast<int>(key) - static_cast<int>(Key::Numpad0));
+        }
+        if (key >= Key::F1 && key <= Key::F15) {
+            return "F" + std::to_string(1 + static_cast<int>(key) - static_cast<int>(Key::F1));
+        }
+        switch (key) {
+            case Key::Up: return "Up";
+            case Key::Down: return "Down";
+            case Key::Left: return "Left";
+            case Key::Right: return "Right";
+            case Key::Space: return "Space";
+            case Key::Enter: return "Enter";
+            case Key::Backspace: return "Backspace";
+            case Key::Tab: return "Tab";
+            case Key::LShift: return "LShift";
+            case Key::RShift: return "RShift";
+            case Key::LControl: return "LCtrl";
+            case Key::RControl: return "RCtrl";
+            case Key::LAlt: return "LAlt";
+            case Key::RAlt: return "RAlt";
+            case Key::PageUp: return "PageUp";
+            case Key::PageDown: return "PageDown";
+            case Key::Home: return "Home";
+            case Key::End: return "End";
+            case Key::Insert: return "Insert";
+            case Key::Delete: return "Delete";
+            case Key::Comma: return ",";
+            case Key::Period: return ".";
+            case Key::Semicolon: return ";";
+            case Key::Apostrophe: return "'";
+            case Key::Slash: return "/";
+            case Key::Backslash: return "\\";
+            case Key::LBracket: return "[";
+            case Key::RBracket: return "]";
+            case Key::Hyphen: return "-";
+            case Key::Equal: return "=";
+            default: return "Key #" + std::to_string(static_cast<int>(key));
+        }
+    }
 }
 
 rtype::App::App(Options options)
@@ -73,6 +124,7 @@ void rtype::App::clearScene() {
     _seenScore = -1;
     _chatOpen = false;
     _chatPreviewTimer = 0.0f;
+    _rebinding.reset();
 }
 
 void rtype::App::setScene(Scene scene) {
@@ -91,6 +143,9 @@ void rtype::App::setScene(Scene scene) {
             break;
         case Scene::Game:
             buildGame();
+            break;
+        case Scene::Controls:
+            buildControls();
             break;
     }
 }
@@ -148,14 +203,17 @@ void rtype::App::buildConnect() {
     _addressField = addInput(200, 220, 400, 44, _options.address, "127.0.0.1", false, 40);
     addLabel(200, 285, "Port", 16, GRAY, false);
     _portField = addInput(200, 310, 400, 44, _options.port, "4242", true, 5);
-    _connectButton = addButton(300, 385, 200, 48, "Login", BLUE, [this]() { connectClicked(); });
-    _statusLabel = addLabel(400, 455, "", 18, GRAY, true);
+    _connectButton = addButton(300, 380, 200, 48, "Login", BLUE, [this]() { connectClicked(); });
+    addButton(300, 440, 200, 40, "Controls", DARK_BTN, [this]() { openControls(); });
+    _statusLabel = addLabel(400, 505, "", 18, GRAY, true);
     _ui.focus = _addressField;
 }
 
 void rtype::App::buildLobby() {
     addLabel(400, 35, "Rooms list", 40, sf::Color::White, true);
     addLabel(400, 92, "Server " + _net.serverName(), 16, GRAY, true);
+    addButton(645, 32, 130, 38, "Controls", DARK_BTN, [this]() { openControls(); },
+        _net.state() == rtype::ClientNet::State::Lobby);
     _statusLabel = addLabel(400, 125, "", 16, RED, true);
     addButton(250, 525, 300, 48, "Create new room", BLUE, [this]() { _net.createRoom(); },
         _net.state() == rtype::ClientNet::State::Lobby);
@@ -166,6 +224,121 @@ void rtype::App::buildLobby() {
             _net.joinRoom(_options.autoJoin);
         else if (_options.autoCreate)
             _net.createRoom();
+    }
+}
+
+void rtype::App::openControls() {
+    if (_scene == Scene::Connect) {
+        if (_addressField)
+            _options.address = fieldValue(_addressField);
+        if (_portField)
+            _options.port = fieldValue(_portField);
+    }
+    _returnScene = _scene;
+    setScene(Scene::Controls);
+}
+
+sf::Keyboard::Key &rtype::App::bindingFor(BindAction action) {
+    switch (action) {
+        case BindAction::Up: return _bindings.up;
+        case BindAction::Down: return _bindings.down;
+        case BindAction::Left: return _bindings.left;
+        case BindAction::Right: return _bindings.right;
+        case BindAction::Shoot: return _bindings.shoot;
+        case BindAction::Chat: return _bindings.chat;
+    }
+    return _bindings.up;
+}
+
+sf::Keyboard::Key rtype::App::bindingFor(BindAction action) const {
+    switch (action) {
+        case BindAction::Up: return _bindings.up;
+        case BindAction::Down: return _bindings.down;
+        case BindAction::Left: return _bindings.left;
+        case BindAction::Right: return _bindings.right;
+        case BindAction::Shoot: return _bindings.shoot;
+        case BindAction::Chat: return _bindings.chat;
+    }
+    return _bindings.up;
+}
+
+void rtype::App::applyRebind(sf::Keyboard::Key key) {
+    if (!_rebinding || key == sf::Keyboard::Key::Unknown)
+        return;
+    const BindAction target = *_rebinding;
+    const sf::Keyboard::Key previous = bindingFor(target);
+    constexpr BindAction allActions[] = {
+        BindAction::Up, BindAction::Down, BindAction::Left,
+        BindAction::Right, BindAction::Shoot, BindAction::Chat
+    };
+
+    for (BindAction action : allActions) {
+        if (action != target && bindingFor(action) == key)
+            bindingFor(action) = previous;
+    }
+    bindingFor(target) = key;
+    _rebinding.reset();
+    rebuildControls();
+}
+
+void rtype::App::buildControls() {
+    addLabel(400, 35, "Controls", 40, sf::Color::White, true);
+    addLabel(400, 88, "Click a binding then press a key (Esc to cancel)", 16, GRAY, true);
+    addButton(180, 520, 200, 46, "Reset defaults", DARK_BTN, [this]() {
+        _bindings = KeyBindings{};
+        _rebinding.reset();
+        rebuildControls();
+    });
+    addButton(420, 520, 200, 46, "Back", BLUE, [this]() {
+        setScene(_returnScene);
+    });
+    rebuildControls();
+}
+
+void rtype::App::rebuildControls() {
+    Registry &registry = _engine.getRegistry();
+    const SparseArray<ecs::UiRow> &marks = registry.getComponents<ecs::UiRow>();
+    std::vector<Entity> stale;
+
+    for (std::size_t index = 0; index < marks.size(); ++index)
+        if (marks[index])
+            stale.emplace_back(index);
+    for (const Entity &entity : stale)
+        registry.killEntity(entity);
+
+    struct RowDef {
+        BindAction action;
+        const char *label;
+    };
+    constexpr RowDef rows[] = {
+        {BindAction::Up, "Move Up"},
+        {BindAction::Down, "Move Down"},
+        {BindAction::Left, "Move Left"},
+        {BindAction::Right, "Move Right"},
+        {BindAction::Shoot, "Shoot"},
+        {BindAction::Chat, "Open Chat"},
+    };
+
+    for (std::size_t i = 0; i < std::size(rows); ++i) {
+        const float y = 135.0f + static_cast<float>(i) * 58.0f;
+        const BindAction action = rows[i].action;
+        const bool waiting = _rebinding && *_rebinding == action;
+        const std::string keyLabel = waiting ? "Press a key..." : keyToString(bindingFor(action));
+        const sf::Color btnColor = waiting ? ACTIVE_BTN : BLUE;
+        Entity box = registry.spawnEntity();
+
+        registry.addComponent(box, ecs::Transform{150.0f, y});
+        registry.addComponent(box, ecs::UiBox{{500.0f, 48.0f}});
+        registry.addComponent(box, ecs::UiText{rows[i].label, 20, sf::Color::White, false});
+        registry.addComponent(box, ecs::UiRow{});
+        registry.addComponent(addButton(430.0f, y + 6.0f, 210.0f, 36.0f, keyLabel, btnColor,
+            [this, action]() {
+                if (_rebinding && *_rebinding == action)
+                    _rebinding.reset();
+                else
+                    _rebinding = action;
+                rebuildControls();
+            }), ecs::UiRow{});
     }
 }
 
@@ -290,8 +463,9 @@ void rtype::App::rebuildChat() {
         registry.killEntity(entity);
 
     if (!_chatOpen) {
-        Entity hint = addLabel(CHAT_X + CHAT_WIDTH, CHAT_INPUT_Y + 10.0f, "[T] Chat", 14, GRAY, false);
-        sf::Text measure(_resources.font(), "[T] Chat", 14);
+        const std::string hintText = "[" + keyToString(_bindings.chat) + "] Chat";
+        Entity hint = addLabel(CHAT_X + CHAT_WIDTH, CHAT_INPUT_Y + 10.0f, hintText, 14, GRAY, false);
+        sf::Text measure(_resources.font(), hintText, 14);
         registry.getComponents<ecs::Transform>()[hint.getId()]->x =
             CHAT_X + CHAT_WIDTH - measure.getLocalBounds().size.x - 4.0f;
         registry.addComponent(hint, ecs::UiChat{});
@@ -436,6 +610,20 @@ void rtype::App::updateLobby(const ecs::FrameInput &input) {
     }
 }
 
+void rtype::App::updateControls() {
+    using State = rtype::ClientNet::State;
+    const State state = _net.state();
+
+    if (state == State::InGame) {
+        setScene(Scene::Game);
+        return;
+    }
+    if (_returnScene == Scene::Lobby && (state == State::Failed || state == State::Idle)) {
+        _formError = _net.error();
+        _returnScene = Scene::Connect;
+    }
+}
+
 void rtype::App::updateGame(float dt, const ecs::FrameInput &input, bool enter) {
     using State = rtype::ClientNet::State;
 
@@ -526,11 +714,11 @@ rtype::ecs::Keys rtype::App::readKeys() const {
 
     if (!_window.hasFocus() || _chatOpen)
         return keys;
-    keys.up = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
-    keys.down = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down);
-    keys.left = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left);
-    keys.right = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right);
-    keys.shoot = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X);
+    keys.up = sf::Keyboard::isKeyPressed(_bindings.up);
+    keys.down = sf::Keyboard::isKeyPressed(_bindings.down);
+    keys.left = sf::Keyboard::isKeyPressed(_bindings.left);
+    keys.right = sf::Keyboard::isKeyPressed(_bindings.right);
+    keys.shoot = sf::Keyboard::isKeyPressed(_bindings.shoot);
     return keys;
 }
 
@@ -543,9 +731,20 @@ rtype::ecs::FrameInput rtype::App::pollEvents(bool &enter) {
         if (event->is<sf::Event::Closed>()) {
             _window.close();
         } else if (const auto *key = event->getIf<sf::Event::KeyPressed>()) {
+            if (_scene == Scene::Controls && _rebinding) {
+                if (key->code == sf::Keyboard::Key::Escape) {
+                    _rebinding.reset();
+                    rebuildControls();
+                } else if (key->code != sf::Keyboard::Key::Unknown) {
+                    applyRebind(key->code);
+                }
+                continue;
+            }
             if (key->code == sf::Keyboard::Key::Escape) {
                 if (_scene == Scene::Game && _chatOpen)
                     input.escape = true;
+                else if (_scene == Scene::Controls)
+                    setScene(_returnScene);
                 else
                     _window.close();
             } else if (key->code == sf::Keyboard::Key::Backspace) {
@@ -554,12 +753,12 @@ rtype::ecs::FrameInput rtype::App::pollEvents(bool &enter) {
                 input.tab = true;
             } else if (key->code == sf::Keyboard::Key::Enter) {
                 enter = true;
-            } else if (key->code == sf::Keyboard::Key::T && _scene == Scene::Game && !_chatOpen) {
+            } else if (key->code == _bindings.chat && _scene == Scene::Game && !_chatOpen) {
                 input.openChat = true;
                 suppressChatKeyChar = true;
             }
         } else if (const auto *text = event->getIf<sf::Event::TextEntered>()) {
-            if (suppressChatKeyChar && (text->unicode == 't' || text->unicode == 'T')) {
+            if (suppressChatKeyChar) {
                 suppressChatKeyChar = false;
                 continue;
             }
@@ -598,6 +797,9 @@ void rtype::App::run() {
                 break;
             case Scene::Game:
                 updateGame(dt, input, enter);
+                break;
+            case Scene::Controls:
+                updateControls();
                 break;
         }
         _window.clear(sf::Color(30, 30, 30));
