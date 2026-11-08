@@ -173,7 +173,7 @@ After each update, a game produces outputs that the server converts as follows:
 | `PlayerCreated` | `EVENT` `NEW_CLIENT` with the player entity id | Sessions of the instance | Reliable (event) |
 | `EntityDestroyed` | `EVENT` `DESTROY` with the entity id | Sessions of the instance | Reliable (event) |
 
-Snapshots carry `serverTick`, and for each entity its id, kind, position and
+Snapshots carry `serverTick`, `score`, and for each entity its id, kind, position and
 health. `flags` is currently always `0` and `header.sessionId` is `0`.
 
 ## Events

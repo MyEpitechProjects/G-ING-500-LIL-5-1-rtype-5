@@ -38,6 +38,8 @@ namespace rtype::ecs {
             // Temps serveur auquel afficher les entités distantes.
             double renderTime(double localNow) const;
             bool localPlayerDead() const { return _localDead; }
+            std::uint16_t localHealth() const { return _localHealth; }
+            unsigned int score() const { return _score; }
 
         private:
             rtype::Resources &_resources;
@@ -48,6 +50,8 @@ namespace rtype::ecs {
             std::optional<Entity> _charge;
             std::optional<std::uint32_t> _lastTick;
             bool _localDead = false;
+            std::uint16_t _localHealth = 3;
+            unsigned int _score = 0;
 
             Entity spawn(Registry &registry, const Net::EntityState &state);
             void promoteToLocal(Registry &registry, Entity entity);

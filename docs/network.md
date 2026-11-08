@@ -285,14 +285,14 @@ The codec handles serialization: there is no need to construct bytes manually wh
 | `CreateInstancePacket` | Client → server | Header only |
 | `InstancePacket` | Both directions | Header and `instanceId` |
 | `InputPacket` | Client → server | Header and `buttons` bitmask |
-| `SnapshotPacket` | Server → client | Header, `serverTick`, `entities` list |
+| `SnapshotPacket` | Server → client | Header, `serverTick`, `score`, `entities` list |
 | `EventPacket` | Both directions | Header, `eventType`, `eventId`, `eventData` (`IEvent`) |
 
 Each header contains `type`, `version`, `sequence` and `sessionId`. The default constructors of concrete packets initialize the correct type and version. If you provide a `PacketHeader` yourself, explicitly initialize its `type`.
 
 `sequence` and `sessionId` default to zero. The handler does not assign or increment them, or validate their application-level meaning. Session management, selecting recent snapshots and handling duplicates are the responsibility of the client/server.
 
-The format uses multibyte integers in network byte order (big-endian). Positions are encoded as 32-bit floating-point values. The limit is **1,200 bytes per packet**, or **74 entities per snapshot** (14 base bytes and 16 per entity). The codec does not split larger snapshots or reassemble them.
+The format uses multibyte integers in network byte order (big-endian). Positions are encoded as 32-bit floating-point values. The limit is **1,200 bytes per packet**, or **73 entities per snapshot** (18 base bytes and 16 per entity). The codec does not split larger snapshots or reassemble them.
 
 Decoding rejects incorrect sizes, unknown versions/types, unsupported buttons, unknown entity types, unknown event subtypes and non-finite positions. In these cases, `deserialize()` returns `nullptr`; the handler prints `invalid packet` and continues receiving.
 

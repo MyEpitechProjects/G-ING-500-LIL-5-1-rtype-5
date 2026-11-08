@@ -21,6 +21,7 @@ namespace rtype {
             };
             struct Snapshot {
                 std::uint32_t tick;
+                std::uint32_t score;
                 double receivedAt;
                 std::vector<Net::EntityState> entities;
             };
