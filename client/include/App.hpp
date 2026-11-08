@@ -26,7 +26,17 @@ namespace rtype {
             void run();
 
         private:
-            enum class Scene { Connect, Lobby, Game };
+            enum class Scene { Connect, Lobby, Game, Controls };
+            enum class BindAction { Up, Down, Left, Right, Shoot, Chat };
+
+            struct KeyBindings {
+                sf::Keyboard::Key up = sf::Keyboard::Key::Up;
+                sf::Keyboard::Key down = sf::Keyboard::Key::Down;
+                sf::Keyboard::Key left = sf::Keyboard::Key::Left;
+                sf::Keyboard::Key right = sf::Keyboard::Key::Right;
+                sf::Keyboard::Key shoot = sf::Keyboard::Key::X;
+                sf::Keyboard::Key chat = sf::Keyboard::Key::T;
+            };
 
             Options _options;
             sf::RenderWindow _window;
@@ -37,6 +47,9 @@ namespace rtype {
             ecs::NetSyncSystem _sync;
             ecs::UiState _ui;
             Scene _scene = Scene::Connect;
+            Scene _returnScene = Scene::Connect;
+            KeyBindings _bindings;
+            std::optional<BindAction> _rebinding;
             ecs::Keys _keys;
             ecs::Keys _sentKeys;
             std::string _formError;
@@ -77,6 +90,12 @@ namespace rtype {
             void buildLobby();
             void rebuildRooms();
             void buildGame();
+            void openControls();
+            void buildControls();
+            void rebuildControls();
+            void applyRebind(sf::Keyboard::Key key);
+            sf::Keyboard::Key &bindingFor(BindAction action);
+            sf::Keyboard::Key bindingFor(BindAction action) const;
             void setChatOpen(bool open);
             void rebuildChat();
             void submitChat();
@@ -84,6 +103,7 @@ namespace rtype {
             void connectClicked();
             void updateConnect(bool enter);
             void updateLobby(const ecs::FrameInput &input);
+            void updateControls();
             void updateGame(float dt, const ecs::FrameInput &input, bool enter);
             void updateHud();
 
