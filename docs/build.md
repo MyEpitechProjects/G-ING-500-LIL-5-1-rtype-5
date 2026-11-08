@@ -15,7 +15,6 @@ Both presets select Release and build the client and server. The hidden `base` p
 
 - CMake 3.20 or later.
 - Git.
-- Python 3, available to CMake, to generate `assets.pak`.
 - vcpkg: follow the [official installation guide](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-powershell), selecting the shell for your system.
 - `VCPKG_ROOT` set to the absolute path of your local vcpkg installation.
 
@@ -31,7 +30,7 @@ On Ubuntu/Debian, install the compiler, build tools, and system development libr
 
 ```sh
 sudo apt update
-sudo apt install build-essential cmake git python3 curl zip unzip tar pkg-config \
+sudo apt install build-essential cmake git curl zip unzip tar pkg-config \
   linux-libc-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libudev-dev libgl1-mesa-dev
 ```
 
@@ -57,14 +56,14 @@ cmake --build build-linux --parallel
 Start the server from the repository root:
 
 ```sh
-./build-linux/rtype_server
+./build-linux/r-type_server
 ```
 
 In another terminal, start the client from the build directory so it can find `assets.pak`:
 
 ```sh
 cd build-linux
-./rtype_client 127.0.0.1
+./r-type_client 127.0.0.1
 ```
 
 ## Windows: MSVC x64 and Ninja
@@ -73,7 +72,7 @@ cd build-linux
 
 - Visual Studio 2022 Build Tools, with the **Desktop development with C++** workload, the MSVC x64/x86 tools, and a Windows SDK. The Visual Studio editor is optional.
 - Ninja, available on `PATH` in the build terminal.
-- Windows installations of CMake, Git, Python 3, and vcpkg.
+- Windows installations of CMake, Git, and vcpkg.
 
 Open **x64 Native Tools Command Prompt for VS 2022**. To use the PowerShell commands below, run `powershell` inside that prompt; it inherits the initialized MSVC x64 environment. An equivalently initialized Developer PowerShell also works.
 
@@ -83,7 +82,6 @@ Check that the tools are available:
 cl
 cmake --version
 ninja --version
-python --version
 ```
 
 `cl` should print the Microsoft compiler banner for x64. It may also report that no source file was provided; this check does not compile anything.
@@ -112,14 +110,14 @@ This uses Ninja with MSVC, not the Visual Studio project generator. Release is s
 Start the server:
 
 ```powershell
-.\build-windows\rtype_server.exe
+.\build-windows\r-type_server.exe
 ```
 
 In another terminal, start the client from the build directory:
 
 ```powershell
 cd build-windows
-.\rtype_client.exe 127.0.0.1
+.\r-type_client.exe 127.0.0.1
 ```
 
 Keep the runtime DLLs supplied by the dependency setup alongside the executables when distributing the build, together with `assets.pak` for the client. A Windows build and runtime check are required to validate Windows compatibility; a successful Linux build alone does not establish it.
@@ -149,8 +147,8 @@ Run the binaries from the corresponding Debug directory, using the same commands
 After changing source code, rerun only the build command for your configuration. To build a specific executable:
 
 ```sh
-cmake --build build-linux --target rtype_server --parallel
-cmake --build build-linux --target rtype_client --parallel
+cmake --build build-linux --target r-type_server --parallel
+cmake --build build-linux --target r-type_client --parallel
 ```
 
 On Windows, substitute `build-windows` for `build-linux`. Use the Debug directory instead when appropriate. Configuring still resolves all declared dependencies, even if you subsequently build only the server target.

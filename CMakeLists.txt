@@ -8,7 +8,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
 find_path(ASIO_INCLUDE_DIR asio.hpp REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
@@ -107,17 +106,17 @@ target_link_libraries(catch_demo PRIVATE
     rtype_engine_render
 )
 
-add_executable(rtype_server
+add_executable(r-type_server
     server/src/main.cpp
     server/src/Server.cpp
     server/src/Instance.cpp
 )
 
-target_include_directories(rtype_server PRIVATE
+target_include_directories(r-type_server PRIVATE
     server/include
 )
 
-target_link_libraries(rtype_server PRIVATE
+target_link_libraries(r-type_server PRIVATE
     rtype_network
     rtype_game
 )
@@ -126,17 +125,19 @@ file(GLOB_RECURSE CLIENT_ASSETS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/client/assets/*"
 )
 
+add_executable(pack_assets client/tools/pack_assets.cpp)
+target_link_libraries(pack_assets PRIVATE OpenSSL::Crypto)
+
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets.pak"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/client/assets"
         "${CMAKE_CURRENT_BINARY_DIR}/client-assets"
-    COMMAND Python3::Interpreter
-        "${CMAKE_CURRENT_SOURCE_DIR}/client/tools/pack_assets.py"
+    COMMAND pack_assets
         "${CMAKE_CURRENT_BINARY_DIR}/client-assets"
         "${CMAKE_CURRENT_BINARY_DIR}/assets.pak"
     DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/client/tools/pack_assets.py"
+        pack_assets
         ${CLIENT_ASSETS}
     VERBATIM
 )
@@ -145,7 +146,7 @@ add_custom_target(rtype_client_assets
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/assets.pak"
 )
 
-add_executable(rtype_client
+add_executable(r-type_client
     client/src/main.cpp
     client/src/App.cpp
     client/src/AssetsPak.cpp
@@ -155,11 +156,11 @@ add_executable(rtype_client
     client/src/ecs/Systems.cpp
 )
 
-target_include_directories(rtype_client PRIVATE
+target_include_directories(r-type_client PRIVATE
     client/include
 )
 
-target_link_libraries(rtype_client PRIVATE
+target_link_libraries(r-type_client PRIVATE
     rtype_network
     rtype_engine
     SFML::Graphics
@@ -168,10 +169,10 @@ target_link_libraries(rtype_client PRIVATE
     OpenSSL::Crypto
 )
 
-add_dependencies(rtype_client rtype_client_assets)
+add_dependencies(r-type_client rtype_client_assets)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    foreach(target rtype_network rtype_engine rtype_engine_physics rtype_engine_render rtype_game rtype_server catch_demo)
+    foreach(target rtype_network rtype_engine rtype_engine_physics rtype_engine_render rtype_game r-type_server catch_demo)
         target_compile_options(${target} PRIVATE
             -Wall -Wextra -Werror
         )
