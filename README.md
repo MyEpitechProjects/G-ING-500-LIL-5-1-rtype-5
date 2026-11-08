@@ -38,10 +38,10 @@ clients over a custom binary UDP protocol.
 
 ```mermaid
 flowchart LR
-    subgraph Client["rtype_client"]
+    subgraph Client["r-type_client"]
         G[SFML rendering<br/>and input]
     end
-    subgraph Server["rtype_server"]
+    subgraph Server["r-type_server"]
         S[Server loop<br/>sessions · events] --> P[Thread pool]
         P --> I1[Instance 1<br/>Game ECS]
         P --> I2[Instance N<br/>Game ECS]
@@ -53,8 +53,8 @@ flowchart LR
 | --- | --- | --- |
 | `network/` | `rtype_network` (static library) | UDP transport (Asio), packet types and binary codec, shared by client and server |
 | `game/` | `rtype_game` (static library) | ECS game simulation, independent from rendering and networking |
-| `server/` | `rtype_server` | Sessions, instances, tick scheduling, event delivery |
-| `client/` | `rtype_client` | Rendering, animations, assets and input with SFML |
+| `server/` | `r-type_server` | Sessions, instances, tick scheduling, event delivery |
+| `client/` | `r-type_client` | Rendering, animations, assets and input with SFML |
 
 ## Getting started
 
@@ -65,7 +65,6 @@ flowchart LR
 | C++ compiler | C++20 (GCC, Clang or MSVC x64) |
 | CMake | 3.20 or later |
 | vcpkg | Recent, with `VCPKG_ROOT` set |
-| Python | 3, used to generate `assets.pak` |
 | Make (Linux) / Ninja (Windows) | Any recent version |
 
 Dependencies (Asio, SFML 3, OpenSSL) are declared in `vcpkg.json` and installed
@@ -100,7 +99,7 @@ dependencies. Debug builds and targeted builds are described in the
 Start the server (UDP port **4242**, 20 ticks per second):
 
 ```sh
-./build-linux/rtype_server
+./build-linux/r-type_server
 ```
 
 Start a client from the build directory, so that it finds `assets.pak`, and give
@@ -108,17 +107,17 @@ it the IPv4 address of the server (`127.0.0.1` by default):
 
 ```sh
 cd build-linux
-./rtype_client 127.0.0.1
+./r-type_client 127.0.0.1
 ```
 
-On Windows, use `build-windows\rtype_server.exe` and
-`build-windows\rtype_client.exe`.
+On Windows, use `build-windows\r-type_server.exe` and
+`build-windows\r-type_client.exe`.
 
 ## Project structure
 
 ```text
 .
-├── client/          # SFML client: include/, src/, assets/, tools/pack_assets.py
+├── client/          # SFML client: include/, src/, assets/, tools/pack_assets.cpp
 ├── game/            # ECS engine and game rules
 ├── network/         # UDP transport and binary protocol
 ├── server/          # Authoritative server: sessions, instances, events
